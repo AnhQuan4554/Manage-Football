@@ -1,0 +1,10 @@
+.next/
+node_modules/
+.pnpm-store/
+out/
+dist/
+public/sw.js
+public/workbox-*.js
+.env
+.env*.local
+*.tsbuildinfo
