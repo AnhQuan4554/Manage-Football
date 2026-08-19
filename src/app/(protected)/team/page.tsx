@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { getCurrentTeam } from "@/features/team-profile/services/teamService";
 import { getActiveMembers } from "@/features/members/services/memberService";
 import { getNextMatch } from "@/features/matches/services/matchService";
+import { uiColors } from "@/lib/constants/colors";
 
 export default async function TeamPage() {
   const [teamResponse, membersResponse, matchResponse] = await Promise.all([getCurrentTeam(), getActiveMembers(), getNextMatch()]);
@@ -15,7 +16,7 @@ export default async function TeamPage() {
     <div className="page-stack">
       <section className="hero-card" style={{ display: "grid", justifyItems: "center", textAlign: "center" }}>
         <Image src="/logo.jpg" alt={team.name} width={144} height={144} className="brand-logo" style={{ width: 144, height: 144, borderRadius: 28 }} />
-        <h1 style={{ color: "white", marginBottom: 4 }}>{team.name}</h1>
+        <h1 style={{ color: uiColors.neutral.white, marginBottom: 4 }}>{team.name}</h1>
         <p style={{ color: "rgba(255,255,255,.78)" }}>{team.intro}</p>
       </section>
       <PageHeader title="Giới thiệu đội" subtitle={`${team.area} - sân nhà ${team.homePitch}`} />

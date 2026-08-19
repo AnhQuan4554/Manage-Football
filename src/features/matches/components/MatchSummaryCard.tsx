@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Card, Space, Tag } from "antd";
-import { EnvironmentOutlined } from "@ant-design/icons";
+import { Tag } from "antd";
+import { ClockCircleOutlined, EnvironmentOutlined } from "@ant-design/icons";
 import type { Match } from "@/features/matches/types";
-import { formatDateTime, formatVnd } from "@/lib/utils/format";
+import { formatDateShort, formatVnd, weekdayShort } from "@/lib/utils/format";
 
 const statusMap: Record<Match["status"], { label: string; color: string }> = {
   scheduled: { label: "Sắp diễn ra", color: "magenta" },
@@ -14,23 +14,29 @@ export function MatchSummaryCard({ match }: { match: Match }) {
   const confirmed = Object.values(match.attendance).filter((status) => status === "going").length;
 
   return (
-    <Link href={`/matches/${match.id}`}>
-      <Card className="surface" styles={{ body: { padding: 16 } }}>
-        <Space direction="vertical" size={8} style={{ width: "100%" }}>
-          <Space style={{ justifyContent: "space-between", width: "100%" }}>
-            <strong>Pinkstorm FC vs {match.opponentName}</strong>
-            <Tag color={statusMap[match.status].color}>{statusMap[match.status].label}</Tag>
-          </Space>
-          <span className="muted">{formatDateTime(match.date, match.time)}</span>
-          <span className="muted">
-            <EnvironmentOutlined /> {match.pitch}
-          </span>
-          <Space wrap>
-            <Tag color="pink">{confirmed} đã xác nhận</Tag>
-            <Tag>{formatVnd(match.pitchCost + match.opponentFee)}</Tag>
-          </Space>
-        </Space>
-      </Card>
+    <Link className="surface match-row" href={`/matches/${match.id}`}>
+      <div className="date-tile">
+        <span>{weekdayShort(match.date)}</span>
+        <span>{formatDateShort(match.date)}</span>
+      </div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <strong style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            vs {match.opponentName}
+          </strong>
+          <Tag color={statusMap[match.status].color} style={{ marginInlineEnd: 0 }}>
+            {statusMap[match.status].label}
+          </Tag>
+        </div>
+        <p className="muted" style={{ margin: "5px 0 0", fontSize: 12 }}>
+          <ClockCircleOutlined /> {match.time} <span style={{ color: "var(--line)" }}>·</span>{" "}
+          <EnvironmentOutlined /> {match.pitch}
+        </p>
+      </div>
+      <div style={{ flexShrink: 0, textAlign: "right" }}>
+        <Tag color="pink" style={{ marginInlineEnd: 0 }}>{confirmed}/7 chốt</Tag>
+        <div className="muted" style={{ marginTop: 5, fontSize: 12 }}>{formatVnd(match.pitchCost + match.opponentFee)}</div>
+      </div>
     </Link>
   );
 }

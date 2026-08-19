@@ -3,6 +3,7 @@
 import { App, ConfigProvider } from "antd";
 import viVN from "antd/locale/vi_VN";
 import type { ReactNode } from "react";
+import { uiColors } from "@/lib/constants/colors";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -10,8 +11,8 @@ export function Providers({ children }: { children: ReactNode }) {
       locale={viVN}
       theme={{
         token: {
-          colorPrimary: "#d41478",
-          colorInfo: "#d41478",
+          colorPrimary: uiColors.brand.primary,
+          colorInfo: uiColors.brand.primary,
           borderRadius: 12,
           fontFamily: "inherit",
         },

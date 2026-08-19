@@ -4,7 +4,7 @@
   "description": "PWA quản lý đội bóng sân 7 Pinkstorm FC.",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#fff7fb",
+  "background_color": "#fff8fb",
   "theme_color": "#d41478",
   "icons": [
     {

@@ -120,6 +120,12 @@ Use Ant Design components where they already fit the project. Do not introduce a
 
 When changing UI, inspect nearby pages/components first so the new work feels native to the app.
 
+Color rule for every UI change:
+
+- Prefer the shared palette in `src/lib/constants/colors.ts` and the existing CSS variables in `src/styles/globals.css`.
+- Do not introduce new hardcoded brand hex values in JSX, TS, or new CSS unless you also add them to the shared palette first.
+- Reuse the existing semantic colors for primary actions, surfaces, text, and success states instead of inventing one-off shades.
+
 ## Commands
 
 Use the existing scripts from `package.json` when relevant:

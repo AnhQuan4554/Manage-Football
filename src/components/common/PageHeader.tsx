@@ -1,8 +1,19 @@
-export function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+export function PageHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+}) {
   return (
-    <div>
-      <h1 style={{ margin: 0 }}>{title}</h1>
-      {subtitle ? <p className="muted" style={{ margin: "4px 0 0" }}>{subtitle}</p> : null}
+    <div className="page-header">
+      <div style={{ minWidth: 0 }}>
+        <h1>{title}</h1>
+        {subtitle ? <p className="muted" style={{ margin: "6px 0 0" }}>{subtitle}</p> : null}
+      </div>
+      {action ? <div style={{ flexShrink: 0 }}>{action}</div> : null}
     </div>
   );
 }

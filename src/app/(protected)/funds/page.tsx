@@ -1,5 +1,5 @@
-import { Alert } from "antd";
 import { PageHeader } from "@/components/common/PageHeader";
+import { PermissionNotice } from "@/components/common/StateBlocks";
 import { FundOverview } from "@/features/funds/components/FundOverview";
 import { getFundOverview } from "@/features/funds/services/fundService";
 import { getMatches } from "@/features/matches/services/matchService";
@@ -14,7 +14,7 @@ export default async function FundsPage() {
   return (
     <div className="page-stack">
       <PageHeader title="Quỹ đội" subtitle="Chia tiền sân theo trận, theo dõi đã đóng/chưa đóng và thu chi nhẹ." />
-      <Alert type="warning" showIcon message="Đội phó/thành viên không thấy thao tác quản lý thu chi." />
+      <PermissionNotice description="Đội phó/thành viên không thấy thao tác quản lý thu chi. Phần xem số dư và chia tiền vẫn được giữ." />
       <FundOverview balance={data.balance} transactions={data.transactions} split={split} match={match} members={members.data ?? []} />
     </div>
   );
