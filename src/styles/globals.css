@@ -124,7 +124,85 @@ a {
   width: 56px;
   height: 56px;
   border-radius: 15px;
-  object-fit: cover;
+  object-fit: contain;
+}
+
+.logo-loading {
+  --loading-size: 86px;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.logo-loading-full {
+  min-height: min(420px, 58vh);
+  place-content: center;
+}
+
+.logo-loading-sm {
+  --loading-size: 54px;
+  gap: 8px;
+}
+
+.logo-loading-lg {
+  --loading-size: 112px;
+  gap: 14px;
+}
+
+.logo-loading-mark {
+  position: relative;
+  display: grid;
+  width: var(--loading-size);
+  height: var(--loading-size);
+  place-items: center;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.96) 0 54%, rgba(255, 240, 247, 0.74) 55% 68%, transparent 69%),
+    radial-gradient(circle at 30% 24%, rgba(255, 77, 172, 0.22), transparent 44%);
+  filter: drop-shadow(0 12px 22px rgba(212, 20, 120, 0.18));
+}
+
+.logo-loading-ring {
+  position: absolute;
+  inset: 0;
+  border: 3px solid rgba(212, 20, 120, 0.12);
+  border-top-color: var(--pink);
+  border-right-color: var(--pink-glow);
+  border-radius: inherit;
+  animation: logo-loading-spin 0.86s linear infinite;
+}
+
+.logo-loading-ring::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(212, 20, 120, 0.13);
+  border-radius: inherit;
+}
+
+.logo-loading-image {
+  position: relative;
+  z-index: 1;
+  width: calc(var(--loading-size) * 0.68);
+  height: calc(var(--loading-size) * 0.58);
+  object-fit: contain;
+}
+
+.logo-loading-label {
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.hero-card .logo-loading-label {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+@keyframes logo-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .nav-link {

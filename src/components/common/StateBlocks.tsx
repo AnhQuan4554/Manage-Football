@@ -32,11 +32,18 @@ export function PermissionNotice({ description }: { description: string }) {
   );
 }
 
-export function ErrorState({ title = "Không tải được dữ liệu" }: { title?: string }) {
+export function ErrorState({
+  title = "Không tải được dữ liệu",
+  description,
+}: {
+  title?: string;
+  description?: string;
+}) {
   return (
     <div className="surface-card" style={{ textAlign: "center" }}>
       <WarningOutlined style={{ color: "var(--danger)", fontSize: 24 }} />
       <p style={{ margin: "8px 0 0", fontWeight: 800 }}>{title}</p>
+      {description ? <p className="muted" style={{ margin: "6px auto 0", maxWidth: 360 }}>{description}</p> : null}
       <Button style={{ marginTop: 12 }}>Thử lại</Button>
     </div>
   );

@@ -2,10 +2,32 @@
 
 import { App, ConfigProvider } from "antd";
 import viVN from "antd/locale/vi_VN";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { uiColors } from "@/lib/constants/colors";
 
 export function Providers({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development" || typeof window === "undefined") {
+      return;
+    }
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => {
+          registration.unregister();
+        });
+      });
+    }
+
+    if ("caches" in window) {
+      caches.keys().then((keys) => {
+        keys.forEach((key) => {
+          caches.delete(key);
+        });
+      });
+    }
+  }, []);
+
   return (
     <ConfigProvider
       locale={viVN}

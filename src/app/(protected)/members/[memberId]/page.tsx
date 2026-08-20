@@ -17,7 +17,6 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ m
         <Descriptions column={1}>
           <Descriptions.Item label="Vai trò"><RoleBadge role={member.role} /></Descriptions.Item>
           <Descriptions.Item label="Điện thoại">{member.phone}</Descriptions.Item>
-          <Descriptions.Item label="Ngày sinh">{member.birthday}</Descriptions.Item>
           <Descriptions.Item label="Gia nhập">{member.joinedAt}</Descriptions.Item>
         </Descriptions>
       </Card>

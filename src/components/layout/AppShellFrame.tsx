@@ -23,7 +23,7 @@ export function AppShellFrame({ team, teams, children }: { team: Team; teams: Te
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-row">
-          <Image src="/logo.jpg" alt="Pinkstorm FC" width={56} height={56} className="brand-logo" />
+          <Image src={team.logoUrl || "/logo-transparent.png"} alt="Pinkstorm FC" width={56} height={56} className="brand-logo" />
           <div>
             <strong>{team.name}</strong>
             <div className="muted" style={{ fontSize: 12 }}>{team.area}</div>
@@ -43,7 +43,7 @@ export function AppShellFrame({ team, teams, children }: { team: Team; teams: Te
 
       <div className="shell-content">
         <header className="mobile-topbar">
-          <Image src="/logo.jpg" alt="Pinkstorm FC" width={36} height={36} className="brand-logo" />
+          <Image src={team.logoUrl || "/logo-transparent.png"} alt="Pinkstorm FC" width={36} height={36} className="brand-logo" />
           <TeamSwitcher team={team} teams={teams} compact />
         </header>
         <main className="main">{children}</main>

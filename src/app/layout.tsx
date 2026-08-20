@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { Geist, Geist_Mono } from "next/font/google";
 import "antd/dist/reset.css";
 import "@/styles/globals.css";
@@ -13,9 +14,9 @@ export const metadata: Metadata = {
   description: "PWA quản lý đội bóng sân 7 Pinkstorm FC.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/logo.jpg",
-    shortcut: "/logo.jpg",
-    apple: "/logo.jpg",
+    icon: "/logo-transparent.png",
+    shortcut: "/logo-transparent.png",
+    apple: "/logo-transparent.png",
   },
 };
 
@@ -30,7 +31,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="vi" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <Providers>{children}</Providers>
+        <AntdRegistry>
+          <Providers>{children}</Providers>
+        </AntdRegistry>
       </body>
     </html>
   );

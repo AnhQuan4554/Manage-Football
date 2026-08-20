@@ -12,21 +12,22 @@ import {
 } from "@ant-design/icons";
 import { PageHeader } from "@/components/common/PageHeader";
 import { MatchSummaryCard } from "@/features/matches/components/MatchSummaryCard";
-import { getNextMatch, getMatches } from "@/features/matches/services/matchService";
+import { getMatches } from "@/features/matches/services/matchService";
 import { getActiveMembers } from "@/features/members/services/memberService";
 import { getFundOverview } from "@/features/funds/services/fundService";
 import { uiColors } from "@/lib/constants/colors";
 import { formatDateShort, formatDateTime, formatVnd } from "@/lib/utils/format";
 
 export default async function DashboardPage() {
-  const [nextMatchResponse, matchesResponse, membersResponse, fundsResponse] = await Promise.all([
-    getNextMatch(),
+  const [matchesResponse, membersResponse, fundsResponse] = await Promise.all([
     getMatches(),
     getActiveMembers(),
     getFundOverview(),
   ]);
-  const nextMatch = nextMatchResponse.data;
   const matches = matchesResponse.data ?? [];
+  const nextMatch = matches
+    .filter((match) => match.status === "scheduled")
+    .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))[0];
   const members = membersResponse.data ?? [];
   const funds = fundsResponse.data!;
   const recentMatches = matches.filter((match) => match.status !== "scheduled").slice(0, 3);

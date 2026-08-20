@@ -7,7 +7,6 @@ export type TeamMember = {
   fullName: string;
   nickname: string;
   phone: string;
-  birthday: string;
   shirtNumber: number;
   role: TeamRole;
   status: MemberStatus;

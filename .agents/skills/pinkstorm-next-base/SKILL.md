@@ -126,6 +126,11 @@ Color rule for every UI change:
 - Do not introduce new hardcoded brand hex values in JSX, TS, or new CSS unless you also add them to the shared palette first.
 - Reuse the existing semantic colors for primary actions, surfaces, text, and success states instead of inventing one-off shades.
 
+API and server rule:
+
+- Before creating or changing any API route, server action, or backend endpoint, read `pinkstorm-api-standard` first and follow its response/request contract.
+- If any endpoint payload, DB write path, auth rule, or business rule is unclear, stop and ask the user before coding.
+
 ## Commands
 
 Use the existing scripts from `package.json` when relevant:

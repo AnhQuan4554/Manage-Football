@@ -6,7 +6,7 @@ export default function LoginPage() {
     <main className="main" style={{ maxWidth: 440 }}>
       <section className="surface" style={{ padding: 22 }}>
         <div style={{ textAlign: "center", marginBottom: 18 }}>
-          <Image src="/logo.jpg" alt="Pinkstorm FC" width={96} height={96} className="brand-logo" style={{ width: 96, height: 96 }} />
+          <Image src="/logo-transparent.png" alt="Pinkstorm FC" width={96} height={96} className="brand-logo" style={{ width: 96, height: 96 }} />
           <h1>Pinkstorm FC</h1>
           <p className="muted">Đăng nhập để quản lý đội bóng sân 7.</p>
         </div>

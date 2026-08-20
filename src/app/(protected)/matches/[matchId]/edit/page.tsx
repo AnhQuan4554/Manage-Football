@@ -1,21 +1,36 @@
 import { PageHeader } from "@/components/common/PageHeader";
+import { MatchForm } from "@/features/matches/components/MatchForm";
 import { getMatchById } from "@/features/matches/services/matchService";
+import { getCurrentTeam } from "@/features/team-profile/services/teamService";
 
 export default async function EditMatchPage({ params }: { params: Promise<{ matchId: string }> }) {
   const { matchId } = await params;
-  const match = (await getMatchById(matchId)).data;
+  const [matchResponse, teamResponse] = await Promise.all([getMatchById(matchId), getCurrentTeam()]);
+  const match = matchResponse.data;
+  const team = teamResponse.data;
+
+  if (!match || !team) {
+    return <PageHeader title="Không tìm thấy trận" />;
+  }
 
   return (
     <div className="page-stack">
-      <PageHeader title="Chỉnh sửa trận" subtitle={match ? `vs ${match.opponentName}` : "Không tìm thấy trận"} />
-      <section className="surface form-surface">
-        <label>Đối thủ</label><input className="field" defaultValue={match?.opponentName} />
-        <label>Sân</label><input className="field" defaultValue={match?.pitch} />
-        <label>Địa chỉ</label><input className="field" defaultValue={match?.address} />
-        <label>Chi phí sân</label><input className="field" type="number" defaultValue={match?.pitchCost} />
-        <label>Ghi chú</label><textarea className="field" rows={3} defaultValue={match?.note} />
-        <button className="button-reset primary-action">Lưu thay đổi</button>
-      </section>
+      <PageHeader title="Chỉnh sửa trận" subtitle={`vs ${match.opponentName}`} />
+      <MatchForm
+        teamId={team.id}
+        mode="edit"
+        matchId={match.id}
+        initialValues={{
+          opponentName: match.opponentName,
+          date: match.date,
+          time: match.time,
+          venueName: match.pitch,
+          address: match.address,
+          pitchCost: String(match.pitchCost),
+          opponentContribution: String(match.opponentFee),
+          note: match.note,
+        }}
+      />
     </div>
   );
 }

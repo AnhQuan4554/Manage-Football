@@ -1,10 +1,7 @@
-import { ok } from "@/lib/response";
-import { mockTeam, otherTeams } from "@/lib/constants/mockData";
+import { getCurrentTeam, listTeams } from "@/features/team-profile/services/teamApiService";
 
-export async function getCurrentTeam() {
-  return ok(mockTeam);
-}
+export { getCurrentTeam };
 
 export async function getMyTeams() {
-  return ok([mockTeam, ...otherTeams]);
+  return listTeams();
 }
