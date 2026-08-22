@@ -250,6 +250,36 @@ a {
   box-shadow: var(--shadow-float);
 }
 
+.fund-hero {
+  background:
+    radial-gradient(circle at 88% 0%, var(--pink-glow) 0, transparent 36%),
+    radial-gradient(circle at 42% -18%, rgba(255, 255, 255, 0.18), transparent 34%),
+    linear-gradient(140deg, var(--navy) 0%, var(--accent) 58%, var(--pink) 100%);
+}
+
+.fund-collapse {
+  display: grid;
+  gap: 10px;
+  background: transparent;
+}
+
+.fund-collapse .ant-collapse-item {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px !important;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.fund-collapse .ant-collapse-header {
+  align-items: center !important;
+  padding: 14px 16px !important;
+}
+
+.fund-collapse .ant-collapse-content {
+  border-top: 1px solid var(--line);
+}
+
 .surface,
 .surface-card {
   background: var(--surface);

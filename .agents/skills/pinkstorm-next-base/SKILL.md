@@ -27,6 +27,15 @@ Before changing code, make sure the user's request is clear. If the request is a
 
 Do not infer hidden requirements. Do not silently redesign workflows, database behavior, permissions, auth, or feature scope.
 
+Before refactoring, creating a feature, or changing business logic, run an impact scan across related routes, components, services, types, mock data, APIs, and Supabase tables. Identify every screen or flow that reads, writes, or displays the affected data, then update all directly related usages in the same change so the app does not drift into inconsistent behavior.
+
+For database-affecting work, trace both directions before editing:
+
+- From UI/action to API/service/repository to table columns and policies.
+- From changed table/field/API response back to every screen, form, detail view, list, mock fallback, and type that consumes it.
+
+Do not leave a related screen knowingly broken because it is outside the first file you touched. If the related update would expand scope, pause and explain the affected areas before continuing.
+
 When the user asks to build or change a screen, first give a short implementation suggestion with tradeoffs, then wait for confirmation before coding if the change is non-trivial or touches important behavior.
 
 For small, clearly scoped fixes, follow the repository patterns and proceed normally.

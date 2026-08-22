@@ -17,6 +17,7 @@ Read [references/api-contracts.md](references/api-contracts.md) before implement
 
 - Do not invent payload fields, route semantics, or business rules when anything is unclear.
 - Ask the user first if the request body, response shape, ownership rule, or DB write path is not fully defined.
+- Before changing an endpoint or Supabase-backed logic, scan related callers and consumers so route params, request payloads, response fields, table columns, and UI states stay aligned across every affected screen.
 - Use the shared response envelope in `src/lib/response.ts`:
   - `ok(data, message?)` for success
   - `fail(error, message?)` for failure
