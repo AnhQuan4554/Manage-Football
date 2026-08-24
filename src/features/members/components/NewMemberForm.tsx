@@ -15,7 +15,6 @@ type CreateMemberPayload = AppResponse<TeamMember>;
 
 export function NewMemberForm() {
   const router = useRouter();
-  const [teams, setTeams] = useState<Team[]>([]);
   const [teamId, setTeamId] = useState("");
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -29,7 +28,6 @@ export function NewMemberForm() {
       const savedTeamId = window.localStorage.getItem(currentTeamStorageKey);
       const selectedTeam = items.find((team) => team.id === savedTeamId) ?? items[0];
 
-      setTeams(items);
       setTeamId(selectedTeam?.id ?? "");
     }
 
@@ -92,50 +90,35 @@ export function NewMemberForm() {
   }
 
   return (
-    <form className="surface form-surface" onSubmit={handleSubmit}>
+    <form className="surface form-surface member-form-card" onSubmit={handleSubmit}>
       {error ? <Alert type="error" message={error} showIcon style={{ marginBottom: 14 }} /> : null}
 
       {loadingTeams ? <LogoLoading label="Đang tải danh sách đội..." size="sm" /> : null}
       {submitting ? <LogoLoading label="Đang lưu thành viên..." size="sm" /> : null}
 
-      <label htmlFor="teamId">Đội</label>
-      <select
-        id="teamId"
-        name="teamId"
-        className="field"
-        value={teamId}
-        onChange={(event) => setTeamId(event.target.value)}
-        disabled={loadingTeams || submitting}
-        required
-      >
-        {teams.map((team) => (
-          <option key={team.id} value={team.id}>
-            {team.name}
-          </option>
-        ))}
-      </select>
+      <input type="hidden" name="teamId" value={teamId} />
+      <input type="hidden" name="role" value="member" />
 
       <label htmlFor="fullName">Họ tên</label>
-      <input id="fullName" name="fullName" className="field" required />
+      <input id="fullName" name="fullName" className="field" placeholder="Nguyễn Văn An" required />
 
-      <label htmlFor="nickname">Biệt danh</label>
-      <input id="nickname" name="nickname" className="field" />
+      <div className="member-form-grid">
+        <span>
+          <label htmlFor="nickname">Tên trong đội</label>
+          <input id="nickname" name="nickname" className="field" placeholder="An Cò" />
+        </span>
+        <span>
+          <label htmlFor="shirtNumber">Số áo</label>
+          <input id="shirtNumber" name="shirtNumber" className="field" type="number" min={0} max={99} placeholder="18" required />
+        </span>
+      </div>
 
       <label htmlFor="phone">Số điện thoại</label>
-      <input id="phone" name="phone" className="field" inputMode="tel" />
+      <input id="phone" name="phone" className="field" inputMode="tel" placeholder="09xx xxx xxx" />
 
-      <label htmlFor="shirtNumber">Số áo</label>
-      <input id="shirtNumber" name="shirtNumber" className="field" type="number" min={0} max={99} required />
-
-      <label htmlFor="role">Vai trò</label>
-      <select id="role" name="role" className="field" defaultValue="member">
-        <option value="member">Thành viên</option>
-        <option value="treasurer">Thủ quỹ</option>
-        <option value="captain">Đội trưởng</option>
-      </select>
 
       <Button type="primary" htmlType="submit" loading={submitting} disabled={loadingTeams} block>
-        Lưu thành viên
+        Thêm vào đội
       </Button>
     </form>
   );

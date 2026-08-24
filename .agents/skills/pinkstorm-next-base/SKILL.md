@@ -125,6 +125,10 @@ Preserve the existing Pinkstorm UI direction unless the user asks for redesign.
 
 Keep the app mobile-first and practical for repeated team-management workflows. Favor clear navigation, scannable information, and fast actions over decorative layouts.
 
+For every CSS, layout, component, or UI-facing code change, make responsive behavior part of the implementation rather than an afterthought. Ensure the result is balanced and usable on both mobile and desktop: text should fit, controls should remain reachable, spacing should feel intentional, important actions should stay clear, and the layout should not overlap, overflow, or become awkward at common phone and desktop widths.
+
+When editing an existing screen, preserve the desktop experience while improving or maintaining the phone experience. When creating a new UI surface, design the mobile layout and desktop layout together so the interaction feels native in both contexts.
+
 Use Ant Design components where they already fit the project. Do not introduce a new UI library without asking.
 
 When changing UI, inspect nearby pages/components first so the new work feels native to the app.
