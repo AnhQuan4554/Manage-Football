@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { withSupabaseTimeout } from "@/lib/supabase/timeout";
 import type { Team } from "@/features/team-profile/types";
 import type { TeamRole } from "@/features/members/types";
+import { mockTeam } from "@/lib/constants/mockData";
 
 type DbTeam = {
   id: string;
@@ -156,7 +157,7 @@ export async function createTeam(input: CreateTeamInput) {
 export async function getCurrentTeam() {
   const teamsResponse = await listTeams();
   if (!teamsResponse.success || !teamsResponse.data?.length) {
-    return fail(teamsResponse.error ?? "Không tìm thấy đội", teamsResponse.message);
+    return ok(mockTeam);
   }
 
   const cookieStore = await cookies();

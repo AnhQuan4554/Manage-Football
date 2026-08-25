@@ -4,6 +4,7 @@ import { fail, ok, type AppResponse } from "@/lib/response";
 type DbMatch = {
   id: string;
   team_id: string;
+  opponent_id: string | null;
   opponent_name: string;
   match_date_time: string;
   venue_name: string;
@@ -109,19 +110,32 @@ type DbProfile = {
   avatar_url: string | null;
 };
 
+type DbOpponent = {
+  id: string;
+  team_id: string;
+  name: string;
+  contact_name: string | null;
+  phone: string | null;
+  note: string | null;
+  last_played_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type MatchApiInput = {
   opponentName: string;
   matchDateTime: string;
   venueName: string;
   address?: string | null;
-  pitchCost: number;
-  opponentContribution: number;
+  pitchCost?: number;
+  opponentContribution?: number;
   note?: string | null;
   status?: DbMatch["status"];
 };
 
 export type MatchApiUpdateInput = Partial<MatchApiInput> & {
   cancelledReason?: string | null;
+  recalculateSplit?: boolean;
 };
 
 export type MatchSplitInput = {
@@ -274,6 +288,36 @@ function normalizeProfile(row: DbProfile) {
   };
 }
 
+function participantSplitKey(participant: { membershipId: string | null; guestId: string | null; id: string }) {
+  return participant.membershipId ?? participant.guestId ?? participant.id;
+}
+
+async function upsertOpponent(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  teamId: string,
+  name: string,
+  lastPlayedAt?: string | null,
+) {
+  const { data, error } = await supabase
+    .from("opponents")
+    .upsert(
+      {
+        team_id: teamId,
+        name: name.trim(),
+        last_played_at: lastPlayedAt ?? null,
+      },
+      { onConflict: "team_id,name" },
+    )
+    .select("id, team_id, name, contact_name, phone, note, last_played_at, created_at, updated_at")
+    .single();
+
+  if (error) {
+    return { error };
+  }
+
+  return { data: data as DbOpponent };
+}
+
 function isValidDateTime(value: string) {
   return !Number.isNaN(Date.parse(value));
 }
@@ -341,7 +385,7 @@ export async function listTeamMatches(teamId: string): Promise<AppResponse<Retur
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("matches")
-    .select("id, team_id, opponent_name, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at")
+    .select("id, team_id, opponent_id, opponent_name, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at")
     .eq("team_id", teamId)
     .order("match_date_time", { ascending: false });
 
@@ -356,24 +400,31 @@ export async function createTeamMatch(teamId: string, input: MatchApiInput): Pro
   if (!input.opponentName?.trim()) return fail("opponentName is required");
   if (!input.matchDateTime || !isValidDateTime(input.matchDateTime)) return fail("matchDateTime is invalid");
   if (!input.venueName?.trim()) return fail("venueName is required");
-  if (!Number.isFinite(input.pitchCost) || input.pitchCost < 0) return fail("pitchCost must be a non-negative number");
-  if (!Number.isFinite(input.opponentContribution) || input.opponentContribution < 0) return fail("opponentContribution must be a non-negative number");
+  if (input.pitchCost !== undefined && (!Number.isFinite(input.pitchCost) || input.pitchCost < 0)) return fail("pitchCost must be a non-negative number");
+  if (input.opponentContribution !== undefined && (!Number.isFinite(input.opponentContribution) || input.opponentContribution < 0)) return fail("opponentContribution must be a non-negative number");
 
   const supabase = await createClient();
+  const opponentResult = await upsertOpponent(supabase, teamId, input.opponentName, input.status === "completed" ? input.matchDateTime : null);
+
+  if ("error" in opponentResult && opponentResult.error) {
+    return fail(opponentResult.error.message, "Không thể lưu đối thủ");
+  }
+
   const { data, error } = await supabase
     .from("matches")
     .insert({
       team_id: teamId,
+      opponent_id: opponentResult.data?.id ?? null,
       opponent_name: input.opponentName.trim(),
       match_date_time: input.matchDateTime,
       venue_name: input.venueName.trim(),
       address: input.address?.trim() || null,
-      pitch_cost: input.pitchCost,
-      opponent_contribution: input.opponentContribution,
+      pitch_cost: input.pitchCost ?? 0,
+      opponent_contribution: input.opponentContribution ?? 0,
       note: input.note?.trim() || null,
       status: input.status ?? "draft",
     })
-    .select("id, team_id, opponent_name, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at")
+    .select("id, team_id, opponent_id, opponent_name, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at")
     .single();
 
   if (error) {
@@ -389,10 +440,12 @@ export async function updateTeamMatch(
   input: MatchApiUpdateInput,
 ): Promise<AppResponse<ReturnType<typeof normalizeMatch>>> {
   const patch: Record<string, unknown> = {};
+  let opponentNameChanged = false;
 
   if (input.opponentName !== undefined) {
     if (!input.opponentName.trim()) return fail("opponentName is required");
     patch.opponent_name = input.opponentName.trim();
+    opponentNameChanged = true;
   }
   if (input.matchDateTime !== undefined) {
     if (!isValidDateTime(input.matchDateTime)) return fail("matchDateTime is invalid");
@@ -429,7 +482,7 @@ export async function updateTeamMatch(
     .update(patch)
     .eq("team_id", teamId)
     .eq("id", matchId)
-    .select("id, team_id, opponent_name, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at")
+    .select("id, team_id, opponent_id, opponent_name, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at")
     .maybeSingle();
 
   if (error) {
@@ -438,6 +491,36 @@ export async function updateTeamMatch(
 
   if (!data) {
     return fail("NOT_FOUND", "Trận đấu không tồn tại");
+  }
+
+  if (opponentNameChanged) {
+    const opponentResult = await upsertOpponent(
+      supabase,
+      teamId,
+      data.opponent_name,
+      data.status === "completed" ? data.match_date_time : null,
+    );
+
+    if ("error" in opponentResult && opponentResult.error) {
+      return fail(opponentResult.error.message, "Không thể lưu đối thủ");
+    }
+
+    const { error: opponentLinkError } = await supabase
+      .from("matches")
+      .update({ opponent_id: opponentResult.data?.id ?? null })
+      .eq("team_id", teamId)
+      .eq("id", matchId);
+
+    if (opponentLinkError) {
+      return fail(opponentLinkError.message, "Không thể liên kết đối thủ");
+    }
+  }
+
+  if (input.recalculateSplit && data.status === "completed") {
+    const splitResult = await recalculateMatchSplit(teamId, matchId, { mode: "going" });
+    if (!splitResult.success) {
+      return fail(splitResult.error ?? "Không thể cập nhật chia tiền", splitResult.message);
+    }
   }
 
   return ok(normalizeMatch(data as DbMatch), "Cập nhật trận thành công");
@@ -464,7 +547,7 @@ export async function deleteTeamMatch(teamId: string, matchId: string): Promise<
 async function getTeamMatchRecord(supabase: Awaited<ReturnType<typeof createClient>>, teamId: string, matchId: string) {
   const { data: match, error } = await supabase
     .from("matches")
-    .select("id, team_id, opponent_name, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at")
+    .select("id, team_id, opponent_id, opponent_name, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at")
     .eq("team_id", teamId)
     .eq("id", matchId)
     .maybeSingle();
@@ -569,10 +652,9 @@ export async function recalculateMatchSplit(
   }
 
   const match = matchResult.data;
-  const teamCost = Math.max(0, asNumber(match.pitch_cost) - asNumber(match.opponent_contribution));
+  const teamCost = Math.max(0, asNumber(match.pitch_cost));
 
-  const [membersResult, participantsResult, collectionResult] = await Promise.all([
-    loadTeamMembers(supabase, teamId),
+  const [participantsResult, collectionResult] = await Promise.all([
     supabase
       .from("match_participants")
       .select("id, match_id, membership_id, guest_id, participant_name, response, chargeable, note, created_at, updated_at")
@@ -585,43 +667,30 @@ export async function recalculateMatchSplit(
       .maybeSingle(),
   ]);
 
-  if ("error" in membersResult && membersResult.error) return fail(membersResult.error.message, "Không thể tải thành viên");
   if (participantsResult.error) return fail(participantsResult.error.message, "Không thể tải người tham gia");
   if (collectionResult.error) return fail(collectionResult.error.message, "Không thể tải collection");
 
-  const activeMembers = (membersResult.data ?? []) as Array<DbTeamMember & { profile?: ReturnType<typeof normalizeProfile> }>;
   const participants = ((participantsResult.data ?? []) as DbMatchParticipant[]).map(normalizeParticipant);
   const selectedMembershipIds = input.includedMemberIds?.filter(Boolean) ?? [];
-  const goingMembershipIds = participants
-    .filter((participant) => participant.response === "going" && participant.chargeable && participant.membershipId)
-    .map((participant) => participant.membershipId as string);
-
-  const effectiveMode = input.mode ?? "all_members";
+  const goingParticipants = participants.filter(
+    (participant) => participant.response === "going" && participant.chargeable && Boolean(participant.membershipId),
+  );
   const includedMembershipIds = selectedMembershipIds.length
     ? selectedMembershipIds
-    : effectiveMode === "going" && goingMembershipIds.length
-      ? goingMembershipIds
-      : activeMembers.map((member) => member.id);
+    : goingParticipants.map((participant) => participant.membershipId as string);
 
   if (!includedMembershipIds.length) {
-    return fail("No chargeable members were found", "Không có thành viên tính tiền");
+    return fail("No chargeable members were found", "Không có thành viên tham gia để chia tiền");
   }
-
-  const memberById = new Map(activeMembers.map((member) => [member.id, member]));
-  const participantByMembershipId = new Map(
-    participants
-      .filter((participant) => participant.membershipId)
-      .map((participant) => [participant.membershipId as string, participant]),
-  );
 
   const roundingStep = Math.max(1, Math.trunc(input.roundingStep ?? defaultSplitStep));
   const shares = computeSplitShares(teamCost, includedMembershipIds.length, roundingStep);
 
   const existingCollection = collectionResult.data as DbCollection | null;
-  const collectionData = existingCollection
+  let collectionData = existingCollection
     ? existingCollection
-    : (
-        await supabase
+    : {
+        ...(await supabase
           .from("collections")
           .insert({
             team_id: teamId,
@@ -633,11 +702,33 @@ export async function recalculateMatchSplit(
             rounding_step: roundingStep,
           })
           .select("id, team_id, match_id, type, title, total_amount, status, rounding_step, note, due_date, closed_at, created_by, created_at, updated_at")
-          .single()
-      ).data;
+          .single()).data,
+      } as DbCollection;
 
   if (!collectionData) {
     return fail("Could not create collection", "Không thể tạo collection chia tiền");
+  }
+
+  if (existingCollection) {
+    const { error: updateCollectionError } = await supabase
+      .from("collections")
+      .update({
+        total_amount: teamCost,
+        rounding_step: roundingStep,
+        status: "open",
+      })
+      .eq("id", existingCollection.id);
+
+    if (updateCollectionError) {
+      return fail(updateCollectionError.message, "Không thể cập nhật collection chia tiền");
+    }
+
+    collectionData = {
+      ...existingCollection,
+      total_amount: teamCost,
+      rounding_step: roundingStep,
+      status: "open",
+    };
   }
 
   const existingItemsResult = await supabase
@@ -650,12 +741,24 @@ export async function recalculateMatchSplit(
   }
 
   const existingItems = (existingItemsResult.data ?? []) as DbCollectionItem[];
-  const existingByMembership = new Map(existingItems.filter((item) => item.membership_id).map((item) => [item.membership_id as string, item]));
+  const existingByKey = new Map(
+    existingItems.map((item) => [
+      item.membership_id ?? item.guest_id ?? item.participant_name,
+      item,
+    ]),
+  );
+  const participantByKey = new Map(
+    participants
+      .filter((participant) => participant.chargeable && participant.response === "going")
+      .map((participant) => [
+        participantSplitKey(participant),
+        participant,
+      ]),
+  );
 
   const payload = includedMembershipIds.map((membershipId, index) => {
-    const member = memberById.get(membershipId);
-    const participant = participantByMembershipId.get(membershipId);
-    const existing = existingByMembership.get(membershipId);
+    const participant = participantByKey.get(membershipId);
+    const existing = existingByKey.get(membershipId);
     const amountDue = shares[index] ?? 0;
     const amountPaid = existing ? asNumber(existing.amount_paid) : 0;
     const status: DbCollectionItem["status"] = existing?.status === "waived"
@@ -668,13 +771,9 @@ export async function recalculateMatchSplit(
 
     return {
       collection_id: collectionData.id,
-      membership_id: membershipId,
-      guest_id: null,
-      participant_name:
-        participant?.participantName ??
-        member?.profile?.fullName ??
-        member?.nickname ??
-        `Member ${index + 1}`,
+      membership_id: participant?.membershipId ?? null,
+      guest_id: participant?.guestId ?? null,
+      participant_name: participant?.participantName ?? `Member ${index + 1}`,
       amount_due: amountDue,
       amount_paid: amountPaid,
       status,
@@ -706,7 +805,7 @@ export async function recalculateMatchSplit(
   }
 
   const response = {
-    ...normalizeCollection(collectionData as DbCollection),
+    ...normalizeCollection(collectionData),
     items: ((reloadedItems ?? []) as DbCollectionItem[]).map(normalizeCollectionItem),
   };
 

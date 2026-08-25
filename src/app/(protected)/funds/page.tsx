@@ -8,7 +8,7 @@ export default async function FundsPage() {
   const [funds, matches, members] = await Promise.all([getFundOverview(), getMatches(), getMembers()]);
   const data = funds.data!;
   const split = data.matchSplits[0];
-  const match = matches.data?.find((item) => item.id === split.matchId);
+  const match = split ? matches.data?.find((item) => item.id === split.matchId) : undefined;
 
   return (
     <div className="page-stack">

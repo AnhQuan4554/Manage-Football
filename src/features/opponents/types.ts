@@ -1,0 +1,11 @@
+export type Opponent = {
+  id: string;
+  teamId: string;
+  name: string;
+  contactName: string | null;
+  phone: string | null;
+  note: string | null;
+  lastPlayedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};

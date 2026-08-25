@@ -55,7 +55,7 @@ function mapMatch(detail: MatchDetailResponse): Match {
     pitch: detail.match.venueName,
     address: detail.match.address ?? "",
     pitchCost: detail.match.pitchCost,
-    opponentFee: detail.match.opponentContribution,
+    opponentFee: 0,
     note: detail.match.note ?? "",
     status: mapDbStatus(detail.match.status),
     zaloVoteStatus: detail.match.status === "cancelled" ? "error" : detail.match.status === "open" || detail.match.status === "lineup_ready" || detail.match.status === "completed" ? "created" : "none",

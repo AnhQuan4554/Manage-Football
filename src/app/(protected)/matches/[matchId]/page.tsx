@@ -36,16 +36,27 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ ma
 
   return (
     <div className="page-stack">
-      <PageHeader title={`Pinkstorm FC vs ${detail.match.opponentName}`} subtitle={formatDateTime(scheduledAt.date, scheduledAt.time)} />
+      <PageHeader
+        title={`Pinkstorm FC vs ${detail.match.opponentName}`}
+        subtitle={formatDateTime(scheduledAt.date, scheduledAt.time)}
+      />
       <Space wrap>
-        <Link href={`/matches/${detail.match.id}/edit`}><Button>Chỉnh sửa trận</Button></Link>
+        <Link href={`/matches/${detail.match.id}/edit`}>
+          <Button type={detail.match.status === "completed" ? "primary" : "default"}>
+            {detail.match.status === "completed" ? "Cập nhật chi phí" : "Chỉnh sửa trận"}
+          </Button>
+        </Link>
         <Link href={`/lineup/${detail.match.id}`}><Button type="primary">Xếp đội hình</Button></Link>
       </Space>
       <Card className="surface">
         <Descriptions column={1} size="small">
           <Descriptions.Item label="Sân">{detail.match.venueName}</Descriptions.Item>
           <Descriptions.Item label="Địa chỉ">{detail.match.address || "Không có"}</Descriptions.Item>
-          <Descriptions.Item label="Chi phí">{formatVnd(detail.match.pitchCost + detail.match.opponentContribution)}</Descriptions.Item>
+          {detail.match.status === "completed" ? (
+            <Descriptions.Item label="Tổng tiền đội phải trả">{formatVnd(detail.match.pitchCost)}</Descriptions.Item>
+          ) : (
+            <Descriptions.Item label="Chi phí">Sẽ hiển thị sau khi trận kết thúc</Descriptions.Item>
+          )}
           <Descriptions.Item label="Ghi chú">{detail.match.note || "Không có"}</Descriptions.Item>
         </Descriptions>
       </Card>
@@ -59,7 +70,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ ma
           pitch: detail.match.venueName,
           address: detail.match.address || "",
           pitchCost: detail.match.pitchCost,
-          opponentFee: detail.match.opponentContribution,
+          opponentFee: 0,
           note: detail.match.note || "",
           status: detail.match.status === "completed" ? "completed" : detail.match.status === "cancelled" ? "cancelled" : "scheduled",
           zaloVoteStatus: detail.match.status === "cancelled" ? "error" : detail.match.status === "open" || detail.match.status === "lineup_ready" || detail.match.status === "completed" ? "created" : "none",

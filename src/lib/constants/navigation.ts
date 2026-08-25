@@ -7,6 +7,7 @@ import {
   TrophyOutlined,
   UsergroupAddOutlined,
   WalletOutlined,
+  TeamOutlined as OpponentOutlined,
 } from "@ant-design/icons";
 
 export const bottomTabs = [
@@ -19,6 +20,7 @@ export const bottomTabs = [
 
 export const moreLinks = [
   { href: "/members", label: "Thành viên", icon: UsergroupAddOutlined },
+  { href: "/opponents", label: "Đối thủ", icon: OpponentOutlined },
   { href: "/media", label: "Media", icon: PictureOutlined },
   { href: "/settings", label: "Cài đặt", icon: SettingOutlined },
 ];

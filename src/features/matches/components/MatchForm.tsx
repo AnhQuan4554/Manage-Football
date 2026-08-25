@@ -18,7 +18,6 @@ type MatchFormValues = {
   venueName: string;
   address: string;
   pitchCost: string;
-  opponentContribution: string;
   note: string;
 };
 
@@ -28,13 +27,23 @@ type Props = {
   matchId?: string;
   initialValues?: Partial<MatchFormValues>;
   submitLabel?: string;
+  showCostFields?: boolean;
+  recalculateSplitOnSuccess?: boolean;
 };
 
 function toDateTime(date: string, time: string) {
   return new Date(`${date}T${time}:00+07:00`).toISOString();
 }
 
-export function MatchForm({ teamId, mode, matchId, initialValues, submitLabel }: Props) {
+export function MatchForm({
+  teamId,
+  mode,
+  matchId,
+  initialValues,
+  submitLabel,
+  showCostFields = false,
+  recalculateSplitOnSuccess = false,
+}: Props) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -45,7 +54,6 @@ export function MatchForm({ teamId, mode, matchId, initialValues, submitLabel }:
     venueName: initialValues?.venueName ?? "",
     address: initialValues?.address ?? "",
     pitchCost: initialValues?.pitchCost ?? "",
-    opponentContribution: initialValues?.opponentContribution ?? "",
     note: initialValues?.note ?? "",
   });
 
@@ -58,9 +66,10 @@ export function MatchForm({ teamId, mode, matchId, initialValues, submitLabel }:
           values.date &&
           values.time &&
           values.venueName.trim() &&
+          (!showCostFields || values.pitchCost !== "") &&
           !pending,
       ),
-    [pending, values.date, values.opponentName, values.time, values.venueName],
+    [pending, showCostFields, values.date, values.opponentName, values.pitchCost, values.time, values.venueName],
   );
 
   async function submitMatch(method: "POST" | "PATCH") {
@@ -68,29 +77,37 @@ export function MatchForm({ teamId, mode, matchId, initialValues, submitLabel }:
     setPending(true);
 
     try {
+      const requestBody: Record<string, unknown> = {
+        opponentName: values.opponentName,
+        matchDateTime: toDateTime(values.date, values.time),
+        venueName: values.venueName,
+        address: values.address,
+        note: values.note,
+      };
+
+      if (showCostFields) {
+        requestBody.pitchCost = Number(values.pitchCost || 0);
+        if (method === "PATCH" && recalculateSplitOnSuccess) {
+          requestBody.recalculateSplit = true;
+        }
+      }
+
       const response = await fetch(
         method === "POST" ? `/api/teams/${teamId}/matches` : `/api/teams/${teamId}/matches/${matchId}`,
         {
           method,
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            opponentName: values.opponentName,
-            matchDateTime: toDateTime(values.date, values.time),
-            venueName: values.venueName,
-            address: values.address,
-            pitchCost: Number(values.pitchCost || 0),
-            opponentContribution: Number(values.opponentContribution || 0),
-            note: values.note,
-          }),
+          body: JSON.stringify(requestBody),
         },
       );
 
-      const payload = (await response.json()) as ApiResponse<{ id: string }>;
-      if (!response.ok || !payload.success || !payload.data) {
-        throw new Error(payload.message || payload.error || "Không thể lưu trận");
+      const responsePayload = (await response.json()) as ApiResponse<{ id: string }>;
+      if (!response.ok || !responsePayload.success || !responsePayload.data) {
+        throw new Error(responsePayload.message || responsePayload.error || "Không thể lưu trận");
       }
 
-      const match = payload.data;
+      const match = responsePayload.data;
+
       router.push(`/matches/${match.id}`);
       router.refresh();
     } catch (err) {
@@ -125,36 +142,53 @@ export function MatchForm({ teamId, mode, matchId, initialValues, submitLabel }:
   }
 
   return (
-    <section className="surface form-surface">
-      <label>Đối thủ</label>
-      <input className="field" value={values.opponentName} onChange={(e) => setValues((current) => ({ ...current, opponentName: e.target.value }))} placeholder="Hà Đông Legends" />
+    <section className="match-form-shell">
+      <section className="surface-card match-form-section">
+        <p className="text-kicker">Đối thủ & thời gian</p>
+        <label>Đội đối thủ</label>
+        <input className="field" value={values.opponentName} onChange={(e) => setValues((current) => ({ ...current, opponentName: e.target.value }))} placeholder="Hà Đông Legends" />
+        <div className="match-form-grid">
+          <div>
+            <label>Ngày</label>
+            <input className="field" type="date" value={values.date} onChange={(e) => setValues((current) => ({ ...current, date: e.target.value }))} />
+          </div>
+          <div>
+            <label>Giờ</label>
+            <input className="field" type="time" value={values.time} onChange={(e) => setValues((current) => ({ ...current, time: e.target.value }))} />
+          </div>
+        </div>
+      </section>
 
-      <label>Ngày</label>
-      <input className="field" type="date" value={values.date} onChange={(e) => setValues((current) => ({ ...current, date: e.target.value }))} />
+      <section className="surface-card match-form-section">
+        <p className="text-kicker">Sân bóng</p>
+        <label>Tên sân</label>
+        <input className="field" value={values.venueName} onChange={(e) => setValues((current) => ({ ...current, venueName: e.target.value }))} placeholder="Sân Phạm Tu - sân số 2" />
 
-      <label>Giờ</label>
-      <input className="field" type="time" value={values.time} onChange={(e) => setValues((current) => ({ ...current, time: e.target.value }))} />
+        <label>Địa chỉ</label>
+        <input className="field" value={values.address} onChange={(e) => setValues((current) => ({ ...current, address: e.target.value }))} placeholder="Ngõ 12 Phạm Tu, Hà Đông, Hà Nội" />
+      </section>
 
-      <label>Sân</label>
-      <input className="field" value={values.venueName} onChange={(e) => setValues((current) => ({ ...current, venueName: e.target.value }))} placeholder="Sân Phạm Tu - sân số 2" />
+      {showCostFields ? (
+        <section className="surface-card match-form-section">
+          <p className="text-kicker">Chi phí trận đã qua</p>
+          <div>
+            <label>Tổng tiền đội phải trả (đ)</label>
+            <input className="field" type="number" value={values.pitchCost} onChange={(e) => setValues((current) => ({ ...current, pitchCost: e.target.value }))} placeholder="700000" />
+          </div>
+        </section>
+      ) : null}
 
-      <label>Địa chỉ</label>
-      <input className="field" value={values.address} onChange={(e) => setValues((current) => ({ ...current, address: e.target.value }))} />
-
-      <label>Chi phí sân</label>
-      <input className="field" type="number" value={values.pitchCost} onChange={(e) => setValues((current) => ({ ...current, pitchCost: e.target.value }))} placeholder="700000" />
-
-      <label>Tiền đối</label>
-      <input className="field" type="number" value={values.opponentContribution} onChange={(e) => setValues((current) => ({ ...current, opponentContribution: e.target.value }))} placeholder="200000" />
-
-      <label>Ghi chú</label>
-      <textarea className="field" rows={3} value={values.note} onChange={(e) => setValues((current) => ({ ...current, note: e.target.value }))} />
+      <section className="surface-card match-form-section">
+        <p className="text-kicker">Ghi chú</p>
+        <label>Ghi chú</label>
+        <textarea className="field" rows={4} value={values.note} onChange={(e) => setValues((current) => ({ ...current, note: e.target.value }))} placeholder="VD: Mang áo sáng, khởi động 19:10..." />
+      </section>
 
       {error ? <p className="muted" style={{ color: "#b42318" }}>{error}</p> : null}
 
       <Space direction="vertical" style={{ width: "100%" }} size={8}>
         <Button type="primary" block onClick={() => submitMatch(isEdit ? "PATCH" : "POST")} disabled={!canSubmit}>
-          {pending ? "Đang lưu..." : submitLabel ?? (isEdit ? "Lưu thay đổi" : "Tạo trận")}
+          {pending ? "Đang lưu..." : submitLabel ?? (isEdit ? "Lưu thay đổi" : "Tạo trận & thông báo")}
         </Button>
         {isEdit ? (
           <Button danger block onClick={handleDelete} disabled={pending}>

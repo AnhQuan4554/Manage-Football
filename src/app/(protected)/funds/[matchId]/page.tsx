@@ -11,7 +11,8 @@ export default async function MatchFundPage({ params }: { params: Promise<{ matc
   const matchData = match.data;
   const splitData = split.data;
   if (!matchData || !splitData) return <PageHeader title="Chưa có dữ liệu chia tiền" />;
-  const perHead = splitData.totalAmount / splitData.includedMemberIds.length;
+  const totalPeople = splitData.includedMemberIds.length;
+  const perHead = totalPeople ? splitData.totalAmount / totalPeople : 0;
 
   return (
     <div className="page-stack">

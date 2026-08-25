@@ -15,20 +15,25 @@ export default async function EditMatchPage({ params }: { params: Promise<{ matc
 
   return (
     <div className="page-stack">
-      <PageHeader title="Chỉnh sửa trận" subtitle={`vs ${match.opponentName}`} />
+      <PageHeader
+        title={match.status === "completed" ? "Cập nhật chi phí trận đã qua" : "Chỉnh sửa trận"}
+        subtitle={`vs ${match.opponentName}`}
+      />
       <MatchForm
         teamId={team.id}
         mode="edit"
         matchId={match.id}
+        showCostFields={match.status === "completed"}
+        recalculateSplitOnSuccess={match.status === "completed"}
+        submitLabel={match.status === "completed" ? "Lưu chi phí & chia tiền" : "Lưu thay đổi"}
         initialValues={{
           opponentName: match.opponentName,
           date: match.date,
           time: match.time,
           venueName: match.pitch,
           address: match.address,
-          pitchCost: String(match.pitchCost),
-          opponentContribution: String(match.opponentFee),
           note: match.note,
+          ...(match.status === "completed" ? { pitchCost: String(match.pitchCost) } : {}),
         }}
       />
     </div>
