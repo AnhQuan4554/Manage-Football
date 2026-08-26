@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Button, Collapse, Form, Input, InputNumber, Modal, Progress, Radio, Select, Tabs, Tag } from "antd";
+import { Alert, Button, Collapse, Form, Input, InputNumber, Modal, Progress, Radio, Select, Tabs, Tag } from "antd";
 import { ArrowDownOutlined, ArrowUpOutlined, EditOutlined, PlusOutlined, RightOutlined } from "@ant-design/icons";
-import type { FundCategory, FundTransaction, MatchSplit } from "@/features/funds/types";
+import type { FundCategory, FundTransaction, MatchSplit, MatchSplitSummary } from "@/features/funds/types";
 import type { Match } from "@/features/matches/types";
 import type { TeamMember } from "@/features/members/types";
 import { uiColors } from "@/lib/constants/colors";
@@ -58,6 +58,14 @@ export function FundOverview({
     .filter((item) => item.type === "expense")
     .reduce((total, item) => total + item.amount, 0);
   const latestSummary = split ? getSplitSummary(split, memberById) : null;
+  const splitSummaries = matchSplits
+    .map((item) => ({
+      split: item,
+      match: matchById.get(item.matchId),
+      summary: getSplitSummary(item, memberById),
+    }))
+    .sort((a, b) => Number(a.summary.isComplete) - Number(b.summary.isComplete));
+  const unpaidMatchSummaries = splitSummaries.filter((item) => !item.summary.isComplete);
   const categoryLabel: Record<FundTransaction["category"], string> = {
     football: "Tiền đá bóng",
     kit: "Tiền áo",
@@ -159,9 +167,9 @@ export function FundOverview({
             <span className="muted">Còn thiếu</span>
             <strong style={{ color: "var(--danger)" }}>{formatVnd(latestSummary.unpaidAmount)}</strong>
           </div>
-          {latestSummary.unpaidMembers.length ? (
+          {(latestSummary.unpaidMembers ?? []).length ? (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-              {latestSummary.unpaidMembers.map((member) => (
+              {(latestSummary.unpaidMembers ?? []).map((member) => (
                 <Tag key={member.id} color="magenta" style={{ marginInlineEnd: 0 }}>{member.nickname}</Tag>
               ))}
             </div>
@@ -171,6 +179,53 @@ export function FundOverview({
           </Link>
         </section>
       ) : null}
+
+      <section className="surface-card">
+        <div className="section-header">
+          <div>
+            <h2>Trận chưa đóng đủ</h2>
+            <p className="muted" style={{ margin: "5px 0 0" }}>
+              Chỉ cần mở từng trận để xem ai đã đóng và ai còn thiếu.
+            </p>
+          </div>
+        </div>
+        {unpaidMatchSummaries.length ? (
+          <div className="page-stack" style={{ gap: 10 }}>
+            {unpaidMatchSummaries.map(({ split: item, match, summary }) => (
+              <Link
+                key={item.matchId}
+                href={`/funds/${item.matchId}`}
+                className="surface"
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  alignItems: "center",
+                  padding: 14,
+                  borderRadius: 16,
+                }}
+              >
+                <span style={{ minWidth: 0 }}>
+                  <strong style={{ display: "block" }}>vs {match?.opponentName ?? "Chưa rõ đối thủ"}</strong>
+                  <span className="muted" style={{ display: "block", marginTop: 4, fontSize: 12 }}>
+                    {match ? `${formatDateShort(match.date)} · ${formatVnd(summary.perHead)}/người` : formatVnd(item.totalAmount)}
+                  </span>
+                </span>
+                <Tag color="magenta" style={{ marginInlineEnd: 0 }}>
+                  Thiếu {summary.unpaidCount}/{summary.totalCount}
+                </Tag>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <Alert
+            type="success"
+            showIcon
+            message="Tất cả trận đã thu đủ"
+            description="Không còn trận nào thiếu tiền sân trong danh sách hiện tại."
+          />
+        )}
+      </section>
 
       <section className="page-stack">
         <div className="section-header">
@@ -309,7 +364,7 @@ function buildMatchSplitPanel(
         <div>
           <span className="text-kicker">Còn thiếu</span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-            {summary.unpaidMembers.length ? summary.unpaidMembers.map((member) => (
+            {(summary.unpaidMembers ?? []).length ? (summary.unpaidMembers ?? []).map((member) => (
               <Tag key={member.id} color="magenta" style={{ marginInlineEnd: 0 }}>{member.nickname} · {formatVnd(summary.perHead)}</Tag>
             )) : <Tag color="success">Đã thu đủ</Tag>}
           </div>
@@ -317,7 +372,7 @@ function buildMatchSplitPanel(
         <div>
           <span className="text-kicker">Đã đóng</span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-            {summary.paidMembers.map((member) => (
+            {(summary.paidMembers ?? []).map((member) => (
               <Tag key={member.id} color="green" style={{ marginInlineEnd: 0 }}>{member.nickname}</Tag>
             ))}
           </div>
@@ -425,7 +480,7 @@ function FundModal({
   );
 }
 
-function getSplitSummary(split: MatchSplit, memberById: Map<string, TeamMember>) {
+function getSplitSummary(split: MatchSplit, memberById: Map<string, TeamMember>): MatchSplitSummary {
   const perHead = split.includedMemberIds.length ? split.totalAmount / split.includedMemberIds.length : 0;
   const paidMembers = split.paidMemberIds
     .map((id) => memberById.get(id))
@@ -436,13 +491,19 @@ function getSplitSummary(split: MatchSplit, memberById: Map<string, TeamMember>)
     .filter((member): member is TeamMember => Boolean(member));
 
   return {
+    ...split,
     perHead,
     total: split.includedMemberIds.length,
     paid: split.paidMemberIds.length,
     paidAmount: split.paidMemberIds.length * perHead,
     unpaidAmount: unpaidMembers.length * perHead,
+    totalCount: split.includedMemberIds.length,
+    paidCount: split.paidMemberIds.length,
+    unpaidCount: unpaidMembers.length,
     paidMembers,
     unpaidMembers,
+    unpaidMemberIds: split.includedMemberIds.filter((id) => !split.paidMemberIds.includes(id)),
+    isComplete: unpaidMembers.length === 0,
   };
 }
 

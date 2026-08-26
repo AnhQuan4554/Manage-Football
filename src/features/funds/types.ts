@@ -1,3 +1,5 @@
+import type { TeamMember } from "@/features/members/types";
+
 export type FundCategory = "football" | "kit" | "party";
 
 export type FundTransaction = {
@@ -18,4 +20,19 @@ export type MatchSplit = {
   totalAmount: number;
   includedMemberIds: string[];
   paidMemberIds: string[];
+};
+
+export type MatchSplitSummary = MatchSplit & {
+  perHead: number;
+  total: number;
+  paid: number;
+  totalCount: number;
+  paidCount: number;
+  unpaidCount: number;
+  paidAmount: number;
+  unpaidAmount: number;
+  unpaidMemberIds: string[];
+  isComplete: boolean;
+  paidMembers?: TeamMember[];
+  unpaidMembers?: TeamMember[];
 };

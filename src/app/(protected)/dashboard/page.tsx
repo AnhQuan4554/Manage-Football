@@ -35,6 +35,7 @@ export default async function DashboardPage() {
         <MiniStat icon={<WalletOutlined />} label="Quỹ đội" value={formatVnd(funds.balance)} />
         <MiniStat icon={<TeamOutlined />} label="Thành viên" value={String(members.length)} />
         <MiniStat icon={<CalendarOutlined />} label="Tháng này" value={`${matches.length} trận`} />
+        <MiniStat icon={<WalletOutlined />} label="Trận chưa đủ" value={String(funds.incompleteMatchCount ?? 0)} />
       </section>
 
       <section className="page-stack">

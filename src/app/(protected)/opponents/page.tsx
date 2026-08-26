@@ -1,4 +1,4 @@
-import { Input, List, Tag } from "antd";
+import { Button, Input, List, Tag } from "antd";
 import { PageHeader } from "@/components/common/PageHeader";
 import { listOpponents } from "@/features/opponents/services/opponentService";
 
@@ -9,8 +9,9 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
-export default async function OpponentsPage({ searchParams }: { searchParams?: { q?: string } }) {
-  const query = searchParams?.q ?? "";
+export default async function OpponentsPage({ searchParams }: { searchParams?: Promise<{ q?: string }> }) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const query = resolvedSearchParams.q ?? "";
   const opponentsResponse = await listOpponents(query);
   const opponents = opponentsResponse.data ?? [];
 
@@ -19,13 +20,12 @@ export default async function OpponentsPage({ searchParams }: { searchParams?: {
       <PageHeader title="Đối thủ" subtitle="Lưu lại các đội bạn từng gặp để sau này tìm và đá lại nhanh hơn." />
       <section className="surface-card">
         <form action="/opponents" method="get">
-          <Input.Search
-            name="q"
-            placeholder="Tìm theo tên đối thủ..."
-            defaultValue={query}
-            allowClear
-            enterButton="Tìm"
-          />
+          <div style={{ display: "flex", width: "100%" }}>
+            <Input name="q" placeholder="Tìm theo tên đối thủ..." defaultValue={query} allowClear />
+            <Button type="primary" htmlType="submit">
+              Tìm
+            </Button>
+          </div>
         </form>
       </section>
 

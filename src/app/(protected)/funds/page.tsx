@@ -7,7 +7,7 @@ import { getMembers } from "@/features/members/services/memberService";
 export default async function FundsPage() {
   const [funds, matches, members] = await Promise.all([getFundOverview(), getMatches(), getMembers()]);
   const data = funds.data!;
-  const split = data.matchSplits[0];
+  const split = data.matchSplits.find((item) => item.paidMemberIds.length < item.includedMemberIds.length) ?? data.matchSplits[0];
   const match = split ? matches.data?.find((item) => item.id === split.matchId) : undefined;
 
   return (

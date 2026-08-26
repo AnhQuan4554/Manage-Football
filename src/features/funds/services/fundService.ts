@@ -2,7 +2,7 @@ import { ok } from "@/lib/response";
 import { mockTransactions } from "@/lib/constants/mockData";
 import { getMatchDetail, getMatches } from "@/features/matches/services/matchService";
 import type { MatchDetailResponse } from "@/features/matches/services/matchApiService";
-import type { MatchSplit } from "@/features/funds/types";
+import type { MatchSplit, MatchSplitSummary } from "@/features/funds/types";
 
 type MatchCollection = NonNullable<MatchDetailResponse["collection"]>;
 
@@ -19,6 +19,27 @@ function splitFromCollection(matchId: string, collection: MatchCollection): Matc
     totalAmount: collection.totalAmount,
     includedMemberIds,
     paidMemberIds,
+  };
+}
+
+export function summarizeMatchSplit(split: MatchSplit): MatchSplitSummary {
+  const totalCount = split.includedMemberIds.length;
+  const paidCount = split.paidMemberIds.length;
+  const perHead = totalCount ? split.totalAmount / totalCount : 0;
+  const unpaidMemberIds = split.includedMemberIds.filter((memberId) => !split.paidMemberIds.includes(memberId));
+
+  return {
+    ...split,
+    perHead,
+    total: totalCount,
+    paid: paidCount,
+    totalCount,
+    paidCount,
+    unpaidCount: unpaidMemberIds.length,
+    paidAmount: paidCount * perHead,
+    unpaidAmount: unpaidMemberIds.length * perHead,
+    unpaidMemberIds,
+    isComplete: unpaidMemberIds.length === 0,
   };
 }
 
@@ -39,7 +60,17 @@ export async function getFundOverview() {
     openingBalance,
   );
 
-  return ok({ openingBalance, balance, transactions: mockTransactions, matchSplits: splitResults.filter((item): item is MatchSplit => Boolean(item)) });
+  const matchSplits = splitResults.filter((item): item is MatchSplit => Boolean(item));
+  const matchSplitSummaries = matchSplits.map((split) => summarizeMatchSplit(split));
+
+  return ok({
+    openingBalance,
+    balance,
+    transactions: mockTransactions,
+    matchSplits,
+    matchSplitSummaries,
+    incompleteMatchCount: matchSplitSummaries.filter((item) => !item.isComplete).length,
+  });
 }
 
 export async function getMatchSplit(matchId: string) {
