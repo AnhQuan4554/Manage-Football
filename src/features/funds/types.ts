@@ -20,6 +20,20 @@ export type MatchSplit = {
   totalAmount: number;
   includedMemberIds: string[];
   paidMemberIds: string[];
+  items: {
+    id: string;
+    membershipId: string | null;
+    guestId: string | null;
+    participantName: string;
+    amountDue: number;
+    amountPaid: number;
+    status: "unpaid" | "partial" | "paid" | "overpaid" | "waived";
+    chargeable: boolean;
+    note: string | null;
+    paidAt: string | null;
+    paidBy: string | null;
+    paymentNote: string | null;
+  }[];
 };
 
 export type MatchSplitSummary = MatchSplit & {

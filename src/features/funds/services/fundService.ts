@@ -19,6 +19,7 @@ function splitFromCollection(matchId: string, collection: MatchCollection): Matc
     totalAmount: collection.totalAmount,
     includedMemberIds,
     paidMemberIds,
+    items: collection.items,
   };
 }
 

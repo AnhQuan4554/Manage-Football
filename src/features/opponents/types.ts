@@ -9,3 +9,10 @@ export type Opponent = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type CreateOpponentInput = {
+  name: string;
+  contactName?: string;
+  phone?: string;
+  note?: string;
+};

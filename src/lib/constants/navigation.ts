@@ -13,14 +13,14 @@ import {
 export const bottomTabs = [
   { href: "/dashboard", label: "Trang chủ", icon: HomeOutlined },
   { href: "/matches", label: "Lịch đá", icon: CalendarOutlined },
-  { href: "/lineup", label: "Đội hình", icon: TrophyOutlined },
+  { href: "/opponents", label: "Đối thủ", icon: OpponentOutlined },
   { href: "/funds", label: "Quỹ", icon: WalletOutlined },
   { href: "/team", label: "Đội", icon: TeamOutlined },
 ];
 
 export const moreLinks = [
   { href: "/members", label: "Thành viên", icon: UsergroupAddOutlined },
-  { href: "/opponents", label: "Đối thủ", icon: OpponentOutlined },
+  { href: "/lineup", label: "Đội hình", icon: TrophyOutlined },
   { href: "/media", label: "Media", icon: PictureOutlined },
   { href: "/settings", label: "Cài đặt", icon: SettingOutlined },
 ];

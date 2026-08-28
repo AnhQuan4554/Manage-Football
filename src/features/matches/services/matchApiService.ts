@@ -83,9 +83,12 @@ type DbCollectionItem = {
   participant_name: string;
   amount_due: number | string;
   amount_paid: number | string;
-  status: "unpaid" | "partial" | "paid" | "waived";
+  status: "unpaid" | "partial" | "paid" | "overpaid" | "waived";
   chargeable: boolean;
   note: string | null;
+  paid_at: string | null;
+  paid_by: string | null;
+  payment_note: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -144,6 +147,12 @@ export type MatchSplitInput = {
   roundingStep?: number;
 };
 
+export type CollectionItemPaymentInput = {
+  action: "mark_paid" | "mark_unpaid";
+  paidAt?: string;
+  paymentNote?: string | null;
+};
+
 export type MatchDetailResponse = {
   match: ReturnType<typeof normalizeMatch>;
   participants: ReturnType<typeof normalizeParticipant>[];
@@ -184,11 +193,16 @@ export type MatchDetailResponse = {
       status: DbCollectionItem["status"];
       chargeable: boolean;
       note: string | null;
+      paidAt: string | null;
+      paidBy: string | null;
+      paymentNote: string | null;
     }[];
   } | null;
 };
 
 const defaultSplitStep = 1;
+const collectionSelect = "id, team_id, match_id, type, title, total_amount, status, rounding_step, note, due_date, closed_at, created_by, created_at, updated_at";
+const collectionItemSelect = "id, collection_id, membership_id, guest_id, participant_name, amount_due, amount_paid, status, chargeable, note, paid_at, paid_by, payment_note, created_at, updated_at";
 
 function asNumber(value: number | string | null | undefined) {
   return Number(value ?? 0);
@@ -256,6 +270,9 @@ function normalizeCollectionItem(row: DbCollectionItem) {
     status: row.status,
     chargeable: row.chargeable,
     note: row.note,
+    paidAt: row.paid_at,
+    paidBy: row.paid_by,
+    paymentNote: row.payment_note,
   };
 }
 
@@ -337,6 +354,18 @@ function computeSplitShares(totalAmount: number, count: number, roundingStep = d
     remainder = Math.max(0, remainder - step);
     return share;
   });
+}
+
+function computeCollectionItemStatus(
+  amountDue: number,
+  amountPaid: number,
+  previousStatus?: DbCollectionItem["status"],
+): DbCollectionItem["status"] {
+  if (previousStatus === "waived") return "waived";
+  if (amountPaid <= 0) return "unpaid";
+  if (amountPaid < amountDue) return "partial";
+  if (amountPaid === amountDue) return "paid";
+  return "overpaid";
 }
 
 async function loadTeamMembers(supabase: Awaited<ReturnType<typeof createClient>>, teamId: string) {
@@ -588,7 +617,7 @@ export async function getTeamMatch(teamId: string, matchId: string): Promise<App
       .maybeSingle(),
     supabase
       .from("collections")
-      .select("id, team_id, match_id, type, title, total_amount, status, rounding_step, note, due_date, closed_at, created_by, created_at, updated_at")
+      .select(collectionSelect)
       .eq("match_id", matchId)
       .maybeSingle(),
   ]);
@@ -611,7 +640,7 @@ export async function getTeamMatch(teamId: string, matchId: string): Promise<App
     collection
       ? supabase
           .from("collection_items")
-          .select("id, collection_id, membership_id, guest_id, participant_name, amount_due, amount_paid, status, chargeable, note, created_at, updated_at")
+          .select(collectionItemSelect)
           .eq("collection_id", collection.id)
           .order("created_at", { ascending: true })
       : Promise.resolve({ data: [], error: null }),
@@ -662,7 +691,7 @@ export async function recalculateMatchSplit(
       .order("created_at", { ascending: true }),
     supabase
       .from("collections")
-      .select("id, team_id, match_id, type, title, total_amount, status, rounding_step, note, due_date, closed_at, created_by, created_at, updated_at")
+      .select(collectionSelect)
       .eq("match_id", matchId)
       .maybeSingle(),
   ]);
@@ -701,7 +730,7 @@ export async function recalculateMatchSplit(
             status: "open",
             rounding_step: roundingStep,
           })
-          .select("id, team_id, match_id, type, title, total_amount, status, rounding_step, note, due_date, closed_at, created_by, created_at, updated_at")
+          .select(collectionSelect)
           .single()).data,
       } as DbCollection;
 
@@ -733,7 +762,7 @@ export async function recalculateMatchSplit(
 
   const existingItemsResult = await supabase
     .from("collection_items")
-    .select("id, collection_id, membership_id, guest_id, participant_name, amount_due, amount_paid, status, chargeable, note, created_at, updated_at")
+    .select(collectionItemSelect)
     .eq("collection_id", collectionData.id);
 
   if (existingItemsResult.error) {
@@ -761,15 +790,10 @@ export async function recalculateMatchSplit(
     const existing = existingByKey.get(membershipId);
     const amountDue = shares[index] ?? 0;
     const amountPaid = existing ? asNumber(existing.amount_paid) : 0;
-    const status: DbCollectionItem["status"] = existing?.status === "waived"
-      ? "waived"
-      : amountPaid >= amountDue && amountDue > 0
-        ? "paid"
-        : amountPaid > 0
-          ? "partial"
-          : "unpaid";
+    const status = computeCollectionItemStatus(amountDue, amountPaid, existing?.status);
 
     return {
+      id: existing?.id,
       collection_id: collectionData.id,
       membership_id: participant?.membershipId ?? null,
       guest_id: participant?.guestId ?? null,
@@ -779,24 +803,58 @@ export async function recalculateMatchSplit(
       status,
       chargeable: true,
       note: existing?.note ?? null,
+      paid_at: existing?.paid_at ?? null,
+      paid_by: existing?.paid_by ?? null,
+      payment_note: existing?.payment_note ?? null,
     };
   });
 
-  const { error: deleteError } = await supabase.from("collection_items").delete().eq("collection_id", collectionData.id);
-  if (deleteError) {
-    return fail(deleteError.message, "Không thể xoá items cũ");
+  for (const item of payload) {
+    if (item.id) {
+      const patch = { ...item };
+      delete patch.id;
+      const { error: updateItemError } = await supabase
+        .from("collection_items")
+        .update(patch)
+        .eq("id", item.id)
+        .eq("collection_id", collectionData.id);
+
+      if (updateItemError) {
+        return fail(updateItemError.message, "Không thể cập nhật item chia tiền");
+      }
+
+      continue;
+    }
+
+    const insertPayload = { ...item };
+    delete insertPayload.id;
+    const { error: insertItemError } = await supabase.from("collection_items").insert(insertPayload);
+    if (insertItemError) {
+      return fail(insertItemError.message, "Không thể tạo item chia tiền");
+    }
   }
 
-  if (payload.length) {
-    const { error: insertError } = await supabase.from("collection_items").insert(payload);
-    if (insertError) {
-      return fail(insertError.message, "Không thể tạo items chia tiền");
+  const activeKeys = new Set(payload.map((item) => item.membership_id ?? item.guest_id ?? item.participant_name));
+  const removableItemIds = existingItems
+    .filter((item) => !activeKeys.has(item.membership_id ?? item.guest_id ?? item.participant_name))
+    .filter((item) => asNumber(item.amount_paid) <= 0)
+    .map((item) => item.id);
+
+  if (removableItemIds.length) {
+    const { error: deleteError } = await supabase
+      .from("collection_items")
+      .delete()
+      .in("id", removableItemIds)
+      .eq("collection_id", collectionData.id);
+
+    if (deleteError) {
+      return fail(deleteError.message, "Không thể xoá item không còn trong danh sách chia tiền");
     }
   }
 
   const { data: reloadedItems, error: reloadError } = await supabase
     .from("collection_items")
-    .select("id, collection_id, membership_id, guest_id, participant_name, amount_due, amount_paid, status, chargeable, note, created_at, updated_at")
+    .select(collectionItemSelect)
     .eq("collection_id", collectionData.id)
     .order("created_at", { ascending: true });
 
@@ -810,4 +868,87 @@ export async function recalculateMatchSplit(
   };
 
   return ok(response, "Đã cập nhật chia tiền");
+}
+
+export async function updateCollectionItemPayment(
+  teamId: string,
+  matchId: string,
+  itemId: string,
+  input: CollectionItemPaymentInput,
+): Promise<AppResponse<ReturnType<typeof normalizeCollectionItem>>> {
+  if (input.action !== "mark_paid" && input.action !== "mark_unpaid") {
+    return fail("action is invalid", "Hành động cập nhật tiền không hợp lệ");
+  }
+
+  if (input.action === "mark_paid" && (!input.paidAt || Number.isNaN(Date.parse(input.paidAt)))) {
+    return fail("paidAt is invalid", "Thời gian đóng tiền không hợp lệ");
+  }
+
+  const supabase = await createClient();
+  const { data: collection, error: collectionError } = await supabase
+    .from("collections")
+    .select(collectionSelect)
+    .eq("team_id", teamId)
+    .eq("match_id", matchId)
+    .maybeSingle();
+
+  if (collectionError) {
+    return fail(collectionError.message, "Không thể tải đợt thu tiền");
+  }
+
+  if (!collection) {
+    return fail("NOT_FOUND", "Chưa có đợt thu tiền cho trận này");
+  }
+
+  const { data: item, error: itemError } = await supabase
+    .from("collection_items")
+    .select(collectionItemSelect)
+    .eq("id", itemId)
+    .eq("collection_id", (collection as DbCollection).id)
+    .maybeSingle();
+
+  if (itemError) {
+    return fail(itemError.message, "Không thể tải khoản đóng tiền");
+  }
+
+  if (!item) {
+    return fail("NOT_FOUND", "Không tìm thấy khoản đóng tiền");
+  }
+
+  const currentItem = item as DbCollectionItem;
+  const { data: userData } = await supabase.auth.getUser();
+  const currentUserId = userData.user?.id ?? null;
+
+  const patch = input.action === "mark_paid"
+    ? {
+        amount_paid: asNumber(currentItem.amount_due),
+        status: "paid" as const,
+        paid_at: currentItem.paid_at ?? input.paidAt,
+        paid_by: currentItem.paid_by ?? currentUserId,
+        payment_note: input.paymentNote?.trim() || currentItem.payment_note,
+      }
+    : {
+        amount_paid: 0,
+        status: "unpaid" as const,
+        paid_at: null,
+        paid_by: null,
+        payment_note: input.paymentNote?.trim() || null,
+      };
+
+  const { data: updatedItem, error: updateError } = await supabase
+    .from("collection_items")
+    .update(patch)
+    .eq("id", currentItem.id)
+    .eq("collection_id", currentItem.collection_id)
+    .select(collectionItemSelect)
+    .single();
+
+  if (updateError) {
+    return fail(updateError.message, "Không thể cập nhật trạng thái đóng tiền");
+  }
+
+  return ok(
+    normalizeCollectionItem(updatedItem as DbCollectionItem),
+    input.action === "mark_paid" ? "Đã xác nhận đóng tiền" : "Đã hoàn tác đóng tiền",
+  );
 }

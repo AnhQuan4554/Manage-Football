@@ -1,5 +1,6 @@
-import { Button, Card, Checkbox, Statistic } from "antd";
+import { Card, Statistic } from "antd";
 import { PageHeader } from "@/components/common/PageHeader";
+import { CollectionPaymentList } from "@/features/funds/components/CollectionPaymentList";
 import { getMatchById } from "@/features/matches/services/matchService";
 import { getMatchSplit } from "@/features/funds/services/fundService";
 import { getMembers } from "@/features/members/services/memberService";
@@ -22,15 +23,12 @@ export default async function MatchFundPage({ params }: { params: Promise<{ matc
         <Statistic title="Tổng tiền chia" value={formatVnd(splitData.totalAmount)} />
       </Card>
       <Card className="surface" title="Người trong danh sách chia tiền">
-        <div className="page-stack">
-          {(members.data ?? []).filter((member) => splitData.includedMemberIds.includes(member.id)).map((member) => (
-            <div key={member.id} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-              <Checkbox checked={splitData.paidMemberIds.includes(member.id)}>{member.nickname}</Checkbox>
-              <strong>{formatVnd(perHead)}</strong>
-            </div>
-          ))}
-        </div>
-        <Button type="primary" block>Đánh dấu đã thu</Button>
+        <CollectionPaymentList
+          teamId={matchData.teamId}
+          matchId={matchId}
+          items={splitData.items}
+          members={members.data ?? []}
+        />
       </Card>
     </div>
   );

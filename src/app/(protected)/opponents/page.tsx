@@ -1,6 +1,8 @@
 import { Button, Input, List, Tag } from "antd";
 import { PageHeader } from "@/components/common/PageHeader";
+import { OpponentCreateButton } from "@/features/opponents/components/OpponentCreateButton";
 import { listOpponents } from "@/features/opponents/services/opponentService";
+import { getCurrentTeam } from "@/features/team-profile/services/teamService";
 
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("vi-VN", {
@@ -12,12 +14,18 @@ function formatDateTime(value: string) {
 export default async function OpponentsPage({ searchParams }: { searchParams?: Promise<{ q?: string }> }) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const query = resolvedSearchParams.q ?? "";
-  const opponentsResponse = await listOpponents(query);
+  const [teamResponse, opponentsResponse] = await Promise.all([getCurrentTeam(), listOpponents(query)]);
   const opponents = opponentsResponse.data ?? [];
+  const team = teamResponse.data;
 
   return (
     <div className="page-stack">
-      <PageHeader title="Đối thủ" subtitle="Lưu lại các đội bạn từng gặp để sau này tìm và đá lại nhanh hơn." />
+      <PageHeader
+        title="Đối thủ"
+        subtitle="Lưu lại các đội bạn từng gặp để sau này tìm và đá lại nhanh hơn."
+        action={team ? <OpponentCreateButton teamId={team.id} /> : null}
+      />
+
       <section className="surface-card">
         <form action="/opponents" method="get">
           <div style={{ display: "flex", width: "100%" }}>

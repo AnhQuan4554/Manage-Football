@@ -1,5 +1,5 @@
 import type { Match } from "@/features/matches/types";
-import type { MatchSplit, FundTransaction } from "@/features/funds/types";
+import type { FundTransaction } from "@/features/funds/types";
 import type { TeamMember } from "@/features/members/types";
 import type { Team } from "@/features/team-profile/types";
 
@@ -114,21 +114,6 @@ export const mockMatches: Match[] = [
     formation: "2-3-1",
     attendance: attendance(["m1", "m2", "m3", "m4", "m5", "m7", "m9", "m10", "m11"]),
     lineup: { gk: "m9", d1: "m3", d2: "m7", m1: "m4", m2: "m2", m3: "m11", f1: "m1" },
-  },
-];
-
-export const mockMatchSplits: MatchSplit[] = [
-  {
-    matchId: "match-3",
-    totalAmount: 850000,
-    includedMemberIds: ["m1", "m2", "m3", "m4", "m5", "m7", "m9", "m10", "m11"],
-    paidMemberIds: ["m1", "m2", "m3", "m5", "m9", "m10"],
-  },
-  {
-    matchId: "match-1",
-    totalAmount: 900000,
-    includedMemberIds: ["m1", "m2", "m3", "m4", "m5", "m6", "m9", "m10"],
-    paidMemberIds: [],
   },
 ];
 
