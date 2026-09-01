@@ -1,5 +1,5 @@
-import { mockTransactions } from "@/lib/constants/mockData";
+import type { FundTransaction } from "@/features/funds/types";
 
-export async function listFundTransactions() {
-  return mockTransactions;
+export async function listFundTransactions(): Promise<FundTransaction[]> {
+  return [];
 }

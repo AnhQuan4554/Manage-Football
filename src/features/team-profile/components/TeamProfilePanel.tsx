@@ -36,13 +36,15 @@ export function TeamProfilePanel() {
       const teamsPayload = (await teamsResponse.json()) as TeamsPayload;
 
       if (!teamsResponse.ok || !teamsPayload.success) {
-        throw new Error(teamsPayload.message ?? teamsPayload.error ?? "Không thể tải danh sách đội");
+        throw new Error(
+          teamsPayload.message ?? teamsPayload.error ?? "Không thể tải danh sách đội",
+        );
       }
 
       const teams = teamsPayload.data ?? [];
       const selectedTeamId = getSelectedTeamId();
       const nextTeam = selectedTeamId
-        ? teams.find((item) => item.id === selectedTeamId) ?? teams[0]
+        ? (teams.find((item) => item.id === selectedTeamId) ?? teams[0])
         : teams[0];
 
       if (!nextTeam) {
@@ -56,14 +58,14 @@ export function TeamProfilePanel() {
       setTeam(nextTeam);
 
       const [membersResponse, matchesResponse] = await Promise.all([
-        fetch(`/api/teams/${nextTeam.id}/members`, { cache: "no-store" }),
-        fetch(`/api/teams/${nextTeam.id}/matches`, { cache: "no-store" }),
+        fetch("/api/teams/" + nextTeam.id + "/members", { cache: "no-store" }),
+        fetch("/api/teams/" + nextTeam.id + "/matches", { cache: "no-store" }),
       ]);
       const membersPayload = (await membersResponse.json()) as MembersPayload;
       const matchesPayload = (await matchesResponse.json()) as MatchesPayload;
 
-      setMembers(membersPayload.success ? membersPayload.data ?? [] : []);
-      setMatches(matchesPayload.success ? matchesPayload.data ?? [] : []);
+      setMembers(membersPayload.success ? (membersPayload.data ?? []) : []);
+      setMatches(matchesPayload.success ? (matchesPayload.data ?? []) : []);
     }
 
     loadTeamProfile()
@@ -102,7 +104,10 @@ export function TeamProfilePanel() {
     return (
       <div className="page-stack">
         <TeamHeader />
-        <EmptyState title="Chưa có đội" description="Bấm Thêm để tạo đội đầu tiên trong hệ thống." />
+        <EmptyState
+          title="Chưa có đội"
+          description="Bấm Thêm để tạo đội đầu tiên trong hệ thống."
+        />
       </div>
     );
   }
@@ -110,12 +115,15 @@ export function TeamProfilePanel() {
   const activeMembers = members.filter((member) => member.status === "active");
   const nextMatch = matches
     .filter((match) => match.status === "scheduled")
-    .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))[0];
+    .sort((a, b) => (a.date + "T" + a.time).localeCompare(b.date + "T" + b.time))[0];
 
   return (
     <div className="page-stack">
-      <TeamHeader subtitle={`${team.memberCount} thành viên trong đội.`} />
-      <section className="hero-card" style={{ display: "grid", justifyItems: "center", textAlign: "center" }}>
+      <TeamHeader subtitle={team.memberCount + " thành viên trong đội."} />
+      <section
+        className="hero-card"
+        style={{ display: "grid", justifyItems: "center", textAlign: "center" }}
+      >
         <Image
           src={team.logoUrl || "/logo-transparent.png"}
           alt={team.name}
@@ -140,21 +148,40 @@ export function TeamProfilePanel() {
       </section>
 
       <Row gutter={[12, 12]}>
-        <Col xs={12}><Card className="surface"><Statistic title="Thành viên" value={activeMembers.length} /></Card></Col>
-        <Col xs={12}><Card className="surface"><Statistic title="Lịch đá" value={nextMatch ? "Sắp tới" : "Chưa có"} /></Card></Col>
+        <Col xs={12}>
+          <Card className="surface">
+            <Statistic title="Thành viên" value={activeMembers.length} />
+          </Card>
+        </Col>
+        <Col xs={12}>
+          <Card className="surface">
+            <Statistic title="Lịch đá" value={nextMatch ? "Sắp tới" : "Chưa có"} />
+          </Card>
+        </Col>
       </Row>
 
       <Card className="surface" title="Trận sắp tới">
-        {nextMatch ? <span>{team.name} vs {nextMatch.opponentName} tại {nextMatch.pitch}</span> : "Chưa có lịch"}
+        {nextMatch ? (
+          <span>
+            {team.name} vs {nextMatch.opponentName} tại {nextMatch.pitch}
+          </span>
+        ) : (
+          "Chưa có lịch"
+        )}
       </Card>
 
       <Card className="surface" title="Thành viên nổi bật">
         {activeMembers.length ? (
           activeMembers.slice(0, 8).map((member) => (
-            <Tag color="magenta" key={member.id}>#{member.shirtNumber} {member.nickname}</Tag>
+            <Tag color="magenta" key={member.id}>
+              #{member.shirtNumber} {member.nickname}
+            </Tag>
           ))
         ) : (
-          <EmptyState title="Hiện chưa có thành viên" description="Khi thêm thành viên vào đội này, danh sách sẽ hiển thị tại đây." />
+          <EmptyState
+            title="Hiện chưa có thành viên"
+            description="Khi thêm thành viên vào đội này, danh sách sẽ hiển thị tại đây."
+          />
         )}
       </Card>
     </div>
@@ -166,7 +193,13 @@ function TeamHeader({ subtitle = "Quản lý thông tin đội bóng." }: { subt
     <PageHeader
       title="Đội"
       subtitle={subtitle}
-      action={<Link href="/team/new"><Button type="primary" icon={<PlusOutlined />}>Thêm</Button></Link>}
+      action={
+        <Link href="/team/new">
+          <Button type="primary" icon={<PlusOutlined />}>
+            Thêm
+          </Button>
+        </Link>
+      }
     />
   );
 }
@@ -181,13 +214,14 @@ function getSelectedTeamId() {
 
 function persistSelectedTeamId(teamId: string) {
   window.localStorage.setItem(currentTeamStorageKey, teamId);
-  document.cookie = `${currentTeamStorageKey}=${encodeURIComponent(teamId)}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  document.cookie =
+    "currentTeamId=" + encodeURIComponent(teamId) + "; Path=/; Max-Age=31536000; SameSite=Lax";
 }
 
 function getCookie(name: string) {
   const value = document.cookie
     .split("; ")
-    .find((row) => row.startsWith(`${name}=`))
+    .find((row) => row.startsWith(name + "="))
     ?.split("=")[1];
 
   return value ? decodeURIComponent(value) : null;

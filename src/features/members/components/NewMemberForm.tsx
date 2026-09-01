@@ -31,9 +31,11 @@ export function NewMemberForm() {
       setTeamId(selectedTeam?.id ?? "");
     }
 
-    loadTeams().catch(() => {
-      setError("Không thể tải danh sách đội. Vui lòng thử lại.");
-    }).finally(() => setLoadingTeams(false));
+    loadTeams()
+      .catch(() => {
+        setError("Không thể tải danh sách đội. Vui lòng thử lại.");
+      })
+      .finally(() => setLoadingTeams(false));
   }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -90,7 +92,11 @@ export function NewMemberForm() {
   }
 
   return (
-    <form className="surface form-surface member-form-card" onSubmit={handleSubmit}>
+    <form
+      className="surface form-surface member-form-card"
+      onSubmit={handleSubmit}
+      aria-busy={loadingTeams || submitting}
+    >
       {error ? <Alert type="error" message={error} showIcon style={{ marginBottom: 14 }} /> : null}
 
       {loadingTeams ? <LogoLoading label="Đang tải danh sách đội..." size="sm" /> : null}
@@ -109,15 +115,23 @@ export function NewMemberForm() {
         </span>
         <span>
           <label htmlFor="shirtNumber">Số áo</label>
-          <input id="shirtNumber" name="shirtNumber" className="field" type="number" min={0} max={99} placeholder="18" required />
+          <input
+            id="shirtNumber"
+            name="shirtNumber"
+            className="field"
+            type="number"
+            min={0}
+            max={99}
+            placeholder="18"
+            required
+          />
         </span>
       </div>
 
       <label htmlFor="phone">Số điện thoại</label>
       <input id="phone" name="phone" className="field" inputMode="tel" placeholder="09xx xxx xxx" />
 
-
-      <Button type="primary" htmlType="submit" loading={submitting} disabled={loadingTeams} block>
+      <Button type="primary" htmlType="submit" disabled={loadingTeams || submitting} block>
         Thêm vào đội
       </Button>
     </form>

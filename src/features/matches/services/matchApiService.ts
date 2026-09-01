@@ -4,7 +4,6 @@ import { fail, ok, type AppResponse } from "@/lib/response";
 type DbMatch = {
   id: string;
   team_id: string;
-  opponent_id: string | null;
   opponent_name: string;
   match_date_time: string;
   venue_name: string;
@@ -97,6 +96,7 @@ type DbTeamMember = {
   id: string;
   team_id: string;
   user_id: string | null;
+  full_name: string | null;
   role: "owner" | "captain" | "deputy" | "member" | "treasurer";
   jersey_number: number | null;
   nickname: string | null;
@@ -134,10 +134,12 @@ export type MatchApiInput = {
   opponentContribution?: number;
   note?: string | null;
   status?: DbMatch["status"];
+  participantMemberIds?: string[];
 };
 
 export type MatchApiUpdateInput = Partial<MatchApiInput> & {
   cancelledReason?: string | null;
+  participantMemberIds?: string[];
   recalculateSplit?: boolean;
 };
 
@@ -200,9 +202,13 @@ export type MatchDetailResponse = {
   } | null;
 };
 
-const defaultSplitStep = 1;
-const collectionSelect = "id, team_id, match_id, type, title, total_amount, status, rounding_step, note, due_date, closed_at, created_by, created_at, updated_at";
-const collectionItemSelect = "id, collection_id, membership_id, guest_id, participant_name, amount_due, amount_paid, status, chargeable, note, paid_at, paid_by, payment_note, created_at, updated_at";
+const defaultSplitStep = 1000;
+const matchSelect =
+  "id, team_id, opponent_name, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at";
+const collectionSelect =
+  "id, team_id, match_id, type, title, total_amount, status, rounding_step, note, due_date, closed_at, created_by, created_at, updated_at";
+const collectionItemSelect =
+  "id, collection_id, membership_id, guest_id, participant_name, amount_due, amount_paid, status, chargeable, note, paid_at, paid_by, payment_note, created_at, updated_at";
 
 function asNumber(value: number | string | null | undefined) {
   return Number(value ?? 0);
@@ -305,7 +311,11 @@ function normalizeProfile(row: DbProfile) {
   };
 }
 
-function participantSplitKey(participant: { membershipId: string | null; guestId: string | null; id: string }) {
+function participantSplitKey(participant: {
+  membershipId: string | null;
+  guestId: string | null;
+  id: string;
+}) {
   return participant.membershipId ?? participant.guestId ?? participant.id;
 }
 
@@ -335,6 +345,15 @@ async function upsertOpponent(
   return { data: data as DbOpponent };
 }
 
+function isMissingOpponentSchemaError(error: { message?: string; code?: string }) {
+  return (
+    error.code === "42P01" ||
+    error.code === "42703" ||
+    error.message?.includes("public.opponents") ||
+    error.message?.includes("schema cache")
+  );
+}
+
 function isValidDateTime(value: string) {
   return !Number.isNaN(Date.parse(value));
 }
@@ -345,15 +364,9 @@ function computeSplitShares(totalAmount: number, count: number, roundingStep = d
   }
 
   const step = Math.max(1, Math.trunc(roundingStep));
-  const normalizedTotal = Math.ceil(totalAmount / step) * step;
-  const baseShare = Math.floor(normalizedTotal / count / step) * step;
-  let remainder = normalizedTotal - baseShare * count;
+  const perHead = Math.max(0, Math.ceil(totalAmount / count / step) * step);
 
-  return Array.from({ length: count }, () => {
-    const share = baseShare + (remainder >= step ? step : 0);
-    remainder = Math.max(0, remainder - step);
-    return share;
-  });
+  return Array.from({ length: count }, () => perHead);
 }
 
 function computeCollectionItemStatus(
@@ -371,7 +384,9 @@ function computeCollectionItemStatus(
 async function loadTeamMembers(supabase: Awaited<ReturnType<typeof createClient>>, teamId: string) {
   const { data, error } = await supabase
     .from("team_members")
-    .select("id, team_id, user_id, role, jersey_number, nickname, status, joined_at, created_at, updated_at")
+    .select(
+      "id, team_id, user_id, full_name, role, jersey_number, nickname, status, joined_at, created_at, updated_at",
+    )
     .eq("team_id", teamId)
     .eq("status", "active")
     .order("joined_at", { ascending: true });
@@ -410,11 +425,108 @@ async function loadTeamMembers(supabase: Awaited<ReturnType<typeof createClient>
   };
 }
 
-export async function listTeamMatches(teamId: string): Promise<AppResponse<ReturnType<typeof normalizeMatch>[]>> {
+function normalizeMemberIds(memberIds: string[] | undefined) {
+  return Array.from(
+    new Set(
+      (memberIds ?? [])
+        .filter((memberId): memberId is string => typeof memberId === "string")
+        .map((memberId) => memberId.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function getMemberParticipantName(
+  member: DbTeamMember & { profile?: ReturnType<typeof normalizeProfile> },
+) {
+  return member.profile?.fullName ?? member.full_name ?? member.nickname ?? "Th\u00e0nh vi\u00ean";
+}
+
+async function syncMatchParticipants(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  teamId: string,
+  matchId: string,
+  memberIds: string[],
+) {
+  const selectedMemberIds = normalizeMemberIds(memberIds);
+
+  if (!selectedMemberIds.length) {
+    return { data: [] as string[] };
+  }
+
+  const membersResult = await loadTeamMembers(supabase, teamId);
+  if ("error" in membersResult && membersResult.error) {
+    return { error: membersResult.error };
+  }
+
+  const selectedMemberIdSet = new Set(selectedMemberIds);
+  const selectedMembers = (membersResult.data ?? []).filter((member) =>
+    selectedMemberIdSet.has(member.id),
+  );
+
+  if (selectedMembers.length !== selectedMemberIds.length) {
+    return {
+      error: new Error(
+        "M\u1ed9t s\u1ed1 th\u00e0nh vi\u00ean kh\u00f4ng h\u1ee3p l\u1ec7 ho\u1eb7c kh\u00f4ng c\u00f2n active",
+      ),
+    };
+  }
+
+  const upsertPayload = selectedMembers.map((member) => ({
+    match_id: matchId,
+    membership_id: member.id,
+    guest_id: null,
+    participant_name: getMemberParticipantName(member),
+    response: "going" as const,
+    chargeable: true,
+  }));
+
+  const { error: upsertError } = await supabase
+    .from("match_participants")
+    .upsert(upsertPayload, { onConflict: "match_id,membership_id" });
+
+  if (upsertError) {
+    return { error: upsertError };
+  }
+
+  const existingResult = await supabase
+    .from("match_participants")
+    .select("id, membership_id")
+    .eq("match_id", matchId)
+    .not("membership_id", "is", null);
+
+  if (existingResult.error) {
+    return { error: existingResult.error };
+  }
+
+  const unselectedParticipantIds = (existingResult.data ?? [])
+    .filter(
+      (participant) =>
+        participant.membership_id && !selectedMemberIdSet.has(participant.membership_id),
+    )
+    .map((participant) => participant.id);
+
+  if (unselectedParticipantIds.length) {
+    const { error: updateError } = await supabase
+      .from("match_participants")
+      .update({ response: "not_going", chargeable: false })
+      .in("id", unselectedParticipantIds);
+
+    if (updateError) {
+      return { error: updateError };
+    }
+  }
+
+  return { data: selectedMemberIds };
+}
+
+export async function listTeamMatches(
+  teamId: string,
+): Promise<AppResponse<ReturnType<typeof normalizeMatch>[]>> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("matches")
-    .select("id, team_id, opponent_id, opponent_name, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at")
+    .select(matchSelect)
     .eq("team_id", teamId)
     .order("match_date_time", { ascending: false });
 
@@ -425,25 +537,40 @@ export async function listTeamMatches(teamId: string): Promise<AppResponse<Retur
   return ok(((data ?? []) as DbMatch[]).map(normalizeMatch));
 }
 
-export async function createTeamMatch(teamId: string, input: MatchApiInput): Promise<AppResponse<ReturnType<typeof normalizeMatch>>> {
+export async function createTeamMatch(
+  teamId: string,
+  input: MatchApiInput,
+): Promise<AppResponse<ReturnType<typeof normalizeMatch>>> {
   if (!input.opponentName?.trim()) return fail("opponentName is required");
-  if (!input.matchDateTime || !isValidDateTime(input.matchDateTime)) return fail("matchDateTime is invalid");
+  if (!input.matchDateTime || !isValidDateTime(input.matchDateTime))
+    return fail("matchDateTime is invalid");
   if (!input.venueName?.trim()) return fail("venueName is required");
-  if (input.pitchCost !== undefined && (!Number.isFinite(input.pitchCost) || input.pitchCost < 0)) return fail("pitchCost must be a non-negative number");
-  if (input.opponentContribution !== undefined && (!Number.isFinite(input.opponentContribution) || input.opponentContribution < 0)) return fail("opponentContribution must be a non-negative number");
+  if (input.pitchCost !== undefined && (!Number.isFinite(input.pitchCost) || input.pitchCost < 0))
+    return fail("pitchCost must be a non-negative number");
+  if (
+    input.opponentContribution !== undefined &&
+    (!Number.isFinite(input.opponentContribution) || input.opponentContribution < 0)
+  )
+    return fail("opponentContribution must be a non-negative number");
 
   const supabase = await createClient();
-  const opponentResult = await upsertOpponent(supabase, teamId, input.opponentName, input.status === "completed" ? input.matchDateTime : null);
+  const opponentResult = await upsertOpponent(
+    supabase,
+    teamId,
+    input.opponentName,
+    input.status === "completed" ? input.matchDateTime : null,
+  );
 
   if ("error" in opponentResult && opponentResult.error) {
-    return fail(opponentResult.error.message, "Không thể lưu đối thủ");
+    if (!isMissingOpponentSchemaError(opponentResult.error)) {
+      return fail(opponentResult.error.message, "Không thể lưu đối thủ");
+    }
   }
 
   const { data, error } = await supabase
     .from("matches")
     .insert({
       team_id: teamId,
-      opponent_id: opponentResult.data?.id ?? null,
       opponent_name: input.opponentName.trim(),
       match_date_time: input.matchDateTime,
       venue_name: input.venueName.trim(),
@@ -453,11 +580,42 @@ export async function createTeamMatch(teamId: string, input: MatchApiInput): Pro
       note: input.note?.trim() || null,
       status: input.status ?? "draft",
     })
-    .select("id, team_id, opponent_id, opponent_name, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at")
+    .select(matchSelect)
     .single();
 
   if (error) {
     return fail(error.message, "Không thể tạo trận");
+  }
+
+  let participantMemberIds: string[];
+  if (input.participantMemberIds !== undefined) {
+    if (!Array.isArray(input.participantMemberIds)) {
+      return fail("participantMemberIds must be an array");
+    }
+    participantMemberIds = normalizeMemberIds(input.participantMemberIds);
+  } else {
+    const membersResult = await loadTeamMembers(supabase, teamId);
+    if ("error" in membersResult && membersResult.error) {
+      return fail(
+        membersResult.error.message,
+        "Không thể tạo danh sách thành viên tham gia mặc định",
+      );
+    }
+    participantMemberIds = (membersResult.data ?? []).map((member) => member.id);
+  }
+
+  const participantResult = await syncMatchParticipants(
+    supabase,
+    teamId,
+    (data as DbMatch).id,
+    participantMemberIds,
+  );
+
+  if ("error" in participantResult && participantResult.error) {
+    return fail(
+      participantResult.error.message,
+      "Không thể tạo danh sách thành viên tham gia mặc định",
+    );
   }
 
   return ok(normalizeMatch(data as DbMatch), "Tạo trận thành công");
@@ -488,11 +646,13 @@ export async function updateTeamMatch(
     patch.address = input.address?.trim() || null;
   }
   if (input.pitchCost !== undefined) {
-    if (!Number.isFinite(input.pitchCost) || input.pitchCost < 0) return fail("pitchCost must be a non-negative number");
+    if (!Number.isFinite(input.pitchCost) || input.pitchCost < 0)
+      return fail("pitchCost must be a non-negative number");
     patch.pitch_cost = input.pitchCost;
   }
   if (input.opponentContribution !== undefined) {
-    if (!Number.isFinite(input.opponentContribution) || input.opponentContribution < 0) return fail("opponentContribution must be a non-negative number");
+    if (!Number.isFinite(input.opponentContribution) || input.opponentContribution < 0)
+      return fail("opponentContribution must be a non-negative number");
     patch.opponent_contribution = input.opponentContribution;
   }
   if (input.note !== undefined) {
@@ -500,22 +660,70 @@ export async function updateTeamMatch(
   }
   if (input.status !== undefined) {
     patch.status = input.status;
+    if (input.status === "completed") {
+      patch.completed_at = new Date().toISOString();
+    }
   }
   if (input.cancelledReason !== undefined) {
     patch.cancelled_reason = input.cancelledReason?.trim() || null;
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("matches")
-    .update(patch)
-    .eq("team_id", teamId)
-    .eq("id", matchId)
-    .select("id, team_id, opponent_id, opponent_name, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at")
-    .maybeSingle();
+  let syncedParticipantMemberIds: string[] | undefined;
 
-  if (error) {
-    return fail(error.message, "Không thể cập nhật trận");
+  if (input.participantMemberIds !== undefined) {
+    if (!Array.isArray(input.participantMemberIds)) {
+      return fail("participantMemberIds must be an array");
+    }
+
+    syncedParticipantMemberIds = normalizeMemberIds(input.participantMemberIds);
+    if (input.recalculateSplit && !syncedParticipantMemberIds.length) {
+      return fail(
+        "participantMemberIds is required",
+        "Ch\u1ecdn \u00edt nh\u1ea5t m\u1ed9t th\u00e0nh vi\u00ean tham gia \u0111\u1ec3 chia ti\u1ec1n",
+      );
+    }
+
+    const participantResult = await syncMatchParticipants(
+      supabase,
+      teamId,
+      matchId,
+      syncedParticipantMemberIds,
+    );
+
+    if ("error" in participantResult && participantResult.error) {
+      return fail(
+        participantResult.error.message,
+        "Kh\u00f4ng th\u1ec3 c\u1eadp nh\u1eadt th\u00e0nh vi\u00ean tham gia",
+      );
+    }
+
+    syncedParticipantMemberIds = participantResult.data;
+  }
+
+  let data: DbMatch | null = null;
+
+  if (Object.keys(patch).length) {
+    const updateResult = await supabase
+      .from("matches")
+      .update(patch)
+      .eq("team_id", teamId)
+      .eq("id", matchId)
+      .select(matchSelect)
+      .maybeSingle();
+
+    if (updateResult.error) {
+      return fail(updateResult.error.message, "Không thể cập nhật trận");
+    }
+
+    data = updateResult.data as DbMatch | null;
+  } else {
+    const matchResult = await getTeamMatchRecord(supabase, teamId, matchId);
+    if ("error" in matchResult && matchResult.error) {
+      return fail(matchResult.error.message, "Không thể tải trận");
+    }
+
+    data = matchResult.data;
   }
 
   if (!data) {
@@ -531,22 +739,20 @@ export async function updateTeamMatch(
     );
 
     if ("error" in opponentResult && opponentResult.error) {
-      return fail(opponentResult.error.message, "Không thể lưu đối thủ");
-    }
-
-    const { error: opponentLinkError } = await supabase
-      .from("matches")
-      .update({ opponent_id: opponentResult.data?.id ?? null })
-      .eq("team_id", teamId)
-      .eq("id", matchId);
-
-    if (opponentLinkError) {
-      return fail(opponentLinkError.message, "Không thể liên kết đối thủ");
+      if (!isMissingOpponentSchemaError(opponentResult.error)) {
+        return fail(opponentResult.error.message, "Không thể lưu đối thủ");
+      }
     }
   }
 
   if (input.recalculateSplit && data.status === "completed") {
-    const splitResult = await recalculateMatchSplit(teamId, matchId, { mode: "going" });
+    const splitResult = await recalculateMatchSplit(
+      teamId,
+      matchId,
+      syncedParticipantMemberIds
+        ? { includedMemberIds: syncedParticipantMemberIds }
+        : { mode: "going" },
+    );
     if (!splitResult.success) {
       return fail(splitResult.error ?? "Không thể cập nhật chia tiền", splitResult.message);
     }
@@ -573,10 +779,14 @@ export async function deleteTeamMatch(teamId: string, matchId: string): Promise<
   return ok(true, "Đã xoá trận");
 }
 
-async function getTeamMatchRecord(supabase: Awaited<ReturnType<typeof createClient>>, teamId: string, matchId: string) {
+async function getTeamMatchRecord(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  teamId: string,
+  matchId: string,
+) {
   const { data: match, error } = await supabase
     .from("matches")
-    .select("id, team_id, opponent_id, opponent_name, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at")
+    .select(matchSelect)
     .eq("team_id", teamId)
     .eq("id", matchId)
     .maybeSingle();
@@ -592,7 +802,10 @@ async function getTeamMatchRecord(supabase: Awaited<ReturnType<typeof createClie
   return { data: match as DbMatch };
 }
 
-export async function getTeamMatch(teamId: string, matchId: string): Promise<AppResponse<MatchDetailResponse>> {
+export async function getTeamMatch(
+  teamId: string,
+  matchId: string,
+): Promise<AppResponse<MatchDetailResponse>> {
   const supabase = await createClient();
   const matchResult = await getTeamMatchRecord(supabase, teamId, matchId);
 
@@ -607,24 +820,26 @@ export async function getTeamMatch(teamId: string, matchId: string): Promise<App
   const [participantsResult, lineupResult, collectionResult] = await Promise.all([
     supabase
       .from("match_participants")
-      .select("id, match_id, membership_id, guest_id, participant_name, response, chargeable, note, created_at, updated_at")
+      .select(
+        "id, match_id, membership_id, guest_id, participant_name, response, chargeable, note, created_at, updated_at",
+      )
       .eq("match_id", matchId)
       .order("created_at", { ascending: true }),
     supabase
       .from("lineups")
-      .select("id, match_id, formation_code, status, version, created_by, published_at, created_at, updated_at")
+      .select(
+        "id, match_id, formation_code, status, version, created_by, published_at, created_at, updated_at",
+      )
       .eq("match_id", matchId)
       .maybeSingle(),
-    supabase
-      .from("collections")
-      .select(collectionSelect)
-      .eq("match_id", matchId)
-      .maybeSingle(),
+    supabase.from("collections").select(collectionSelect).eq("match_id", matchId).maybeSingle(),
   ]);
 
-  if (participantsResult.error) return fail(participantsResult.error.message, "Không thể tải người tham gia");
+  if (participantsResult.error)
+    return fail(participantsResult.error.message, "Không thể tải người tham gia");
   if (lineupResult.error) return fail(lineupResult.error.message, "Không thể tải đội hình");
-  if (collectionResult.error) return fail(collectionResult.error.message, "Không thể tải chia tiền");
+  if (collectionResult.error)
+    return fail(collectionResult.error.message, "Không thể tải chia tiền");
 
   const lineup = lineupResult.data as DbLineup | null;
   const collection = collectionResult.data as DbCollection | null;
@@ -651,10 +866,10 @@ export async function getTeamMatch(teamId: string, matchId: string): Promise<App
 
   return ok({
     match: normalizeMatch(matchResult.data),
-    participants: ((participantsResult.data ?? []) as DbMatchParticipant[]).map(normalizeParticipant),
-    lineup: lineup
-      ? normalizeLineup(lineup, (slotsResult.data ?? []) as DbLineupSlot[])
-      : null,
+    participants: ((participantsResult.data ?? []) as DbMatchParticipant[]).map(
+      normalizeParticipant,
+    ),
+    lineup: lineup ? normalizeLineup(lineup, (slotsResult.data ?? []) as DbLineupSlot[]) : null,
     collection: collection
       ? {
           ...normalizeCollection(collection),
@@ -686,23 +901,28 @@ export async function recalculateMatchSplit(
   const [participantsResult, collectionResult] = await Promise.all([
     supabase
       .from("match_participants")
-      .select("id, match_id, membership_id, guest_id, participant_name, response, chargeable, note, created_at, updated_at")
+      .select(
+        "id, match_id, membership_id, guest_id, participant_name, response, chargeable, note, created_at, updated_at",
+      )
       .eq("match_id", matchId)
       .order("created_at", { ascending: true }),
-    supabase
-      .from("collections")
-      .select(collectionSelect)
-      .eq("match_id", matchId)
-      .maybeSingle(),
+    supabase.from("collections").select(collectionSelect).eq("match_id", matchId).maybeSingle(),
   ]);
 
-  if (participantsResult.error) return fail(participantsResult.error.message, "Không thể tải người tham gia");
-  if (collectionResult.error) return fail(collectionResult.error.message, "Không thể tải collection");
+  if (participantsResult.error)
+    return fail(participantsResult.error.message, "Không thể tải người tham gia");
+  if (collectionResult.error)
+    return fail(collectionResult.error.message, "Không thể tải collection");
 
-  const participants = ((participantsResult.data ?? []) as DbMatchParticipant[]).map(normalizeParticipant);
+  const participants = ((participantsResult.data ?? []) as DbMatchParticipant[]).map(
+    normalizeParticipant,
+  );
   const selectedMembershipIds = input.includedMemberIds?.filter(Boolean) ?? [];
   const goingParticipants = participants.filter(
-    (participant) => participant.response === "going" && participant.chargeable && Boolean(participant.membershipId),
+    (participant) =>
+      participant.response === "going" &&
+      participant.chargeable &&
+      Boolean(participant.membershipId),
   );
   const includedMembershipIds = selectedMembershipIds.length
     ? selectedMembershipIds
@@ -718,21 +938,23 @@ export async function recalculateMatchSplit(
   const existingCollection = collectionResult.data as DbCollection | null;
   let collectionData = existingCollection
     ? existingCollection
-    : {
-        ...(await supabase
-          .from("collections")
-          .insert({
-            team_id: teamId,
-            match_id: matchId,
-            type: "match",
-            title: `Chia tiền trận ${match.opponent_name}`,
-            total_amount: teamCost,
-            status: "open",
-            rounding_step: roundingStep,
-          })
-          .select(collectionSelect)
-          .single()).data,
-      } as DbCollection;
+    : ({
+        ...(
+          await supabase
+            .from("collections")
+            .insert({
+              team_id: teamId,
+              match_id: matchId,
+              type: "match",
+              title: `Chia tiền trận ${match.opponent_name}`,
+              total_amount: teamCost,
+              status: "open",
+              rounding_step: roundingStep,
+            })
+            .select(collectionSelect)
+            .single()
+        ).data,
+      } as DbCollection);
 
   if (!collectionData) {
     return fail("Could not create collection", "Không thể tạo collection chia tiền");
@@ -779,11 +1001,25 @@ export async function recalculateMatchSplit(
   const participantByKey = new Map(
     participants
       .filter((participant) => participant.chargeable && participant.response === "going")
-      .map((participant) => [
-        participantSplitKey(participant),
-        participant,
-      ]),
+      .map((participant) => [participantSplitKey(participant), participant]),
   );
+  const missingParticipantMemberIds = includedMembershipIds.filter(
+    (membershipId) => !participantByKey.has(membershipId),
+  );
+  const memberNameById = new Map<string, string>();
+
+  if (missingParticipantMemberIds.length) {
+    const membersResult = await loadTeamMembers(supabase, teamId);
+    if ("error" in membersResult && membersResult.error) {
+      return fail(membersResult.error.message, "Không thể tải thành viên để chia tiền");
+    }
+
+    for (const member of membersResult.data ?? []) {
+      if (missingParticipantMemberIds.includes(member.id)) {
+        memberNameById.set(member.id, getMemberParticipantName(member));
+      }
+    }
+  }
 
   const payload = includedMembershipIds.map((membershipId, index) => {
     const participant = participantByKey.get(membershipId);
@@ -795,9 +1031,12 @@ export async function recalculateMatchSplit(
     return {
       id: existing?.id,
       collection_id: collectionData.id,
-      membership_id: participant?.membershipId ?? null,
+      membership_id: participant?.membershipId ?? membershipId,
       guest_id: participant?.guestId ?? null,
-      participant_name: participant?.participantName ?? `Member ${index + 1}`,
+      participant_name:
+        participant?.participantName ??
+        memberNameById.get(membershipId) ??
+        `Thành viên ${index + 1}`,
       amount_due: amountDue,
       amount_paid: amountPaid,
       status,
@@ -828,13 +1067,17 @@ export async function recalculateMatchSplit(
 
     const insertPayload = { ...item };
     delete insertPayload.id;
-    const { error: insertItemError } = await supabase.from("collection_items").insert(insertPayload);
+    const { error: insertItemError } = await supabase
+      .from("collection_items")
+      .insert(insertPayload);
     if (insertItemError) {
       return fail(insertItemError.message, "Không thể tạo item chia tiền");
     }
   }
 
-  const activeKeys = new Set(payload.map((item) => item.membership_id ?? item.guest_id ?? item.participant_name));
+  const activeKeys = new Set(
+    payload.map((item) => item.membership_id ?? item.guest_id ?? item.participant_name),
+  );
   const removableItemIds = existingItems
     .filter((item) => !activeKeys.has(item.membership_id ?? item.guest_id ?? item.participant_name))
     .filter((item) => asNumber(item.amount_paid) <= 0)
@@ -919,21 +1162,22 @@ export async function updateCollectionItemPayment(
   const { data: userData } = await supabase.auth.getUser();
   const currentUserId = userData.user?.id ?? null;
 
-  const patch = input.action === "mark_paid"
-    ? {
-        amount_paid: asNumber(currentItem.amount_due),
-        status: "paid" as const,
-        paid_at: currentItem.paid_at ?? input.paidAt,
-        paid_by: currentItem.paid_by ?? currentUserId,
-        payment_note: input.paymentNote?.trim() || currentItem.payment_note,
-      }
-    : {
-        amount_paid: 0,
-        status: "unpaid" as const,
-        paid_at: null,
-        paid_by: null,
-        payment_note: input.paymentNote?.trim() || null,
-      };
+  const patch =
+    input.action === "mark_paid"
+      ? {
+          amount_paid: asNumber(currentItem.amount_due),
+          status: "paid" as const,
+          paid_at: currentItem.paid_at ?? input.paidAt,
+          paid_by: currentItem.paid_by ?? currentUserId,
+          payment_note: input.paymentNote?.trim() || currentItem.payment_note,
+        }
+      : {
+          amount_paid: 0,
+          status: "unpaid" as const,
+          paid_at: null,
+          paid_by: null,
+          payment_note: input.paymentNote?.trim() || null,
+        };
 
   const { data: updatedItem, error: updateError } = await supabase
     .from("collection_items")

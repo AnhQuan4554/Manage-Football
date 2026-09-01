@@ -63,12 +63,18 @@ export function NewOpponentForm({ teamId, onCreated }: NewOpponentFormProps) {
   }
 
   return (
-    <form className="form-surface" onSubmit={handleSubmit}>
+    <form className="form-surface" onSubmit={handleSubmit} aria-busy={submitting}>
       {error ? <Alert type="error" message={error} showIcon style={{ marginBottom: 14 }} /> : null}
       {submitting ? <LogoLoading label="Đang lưu đối thủ..." size="sm" /> : null}
 
       <label htmlFor="name">Tên đối thủ</label>
-      <input id="name" name="name" className="field" placeholder="Ví dụ: Hà Đông Legends" required />
+      <input
+        id="name"
+        name="name"
+        className="field"
+        placeholder="Ví dụ: Hà Đông Legends"
+        required
+      />
 
       <div className="member-form-grid">
         <span>
@@ -77,14 +83,26 @@ export function NewOpponentForm({ teamId, onCreated }: NewOpponentFormProps) {
         </span>
         <span>
           <label htmlFor="phone">Số điện thoại</label>
-          <input id="phone" name="phone" className="field" inputMode="tel" placeholder="09xx xxx xxx" />
+          <input
+            id="phone"
+            name="phone"
+            className="field"
+            inputMode="tel"
+            placeholder="09xx xxx xxx"
+          />
         </span>
       </div>
 
       <label htmlFor="note">Ghi chú</label>
-      <textarea id="note" name="note" className="field" rows={3} placeholder="Sân hay đá, trình độ, màu áo..." />
+      <textarea
+        id="note"
+        name="note"
+        className="field"
+        rows={3}
+        placeholder="Sân hay đá, trình độ, màu áo..."
+      />
 
-      <Button type="primary" htmlType="submit" loading={submitting} block>
+      <Button type="primary" htmlType="submit" disabled={submitting} block>
         Lưu đối thủ
       </Button>
     </form>

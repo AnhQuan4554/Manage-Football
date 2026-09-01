@@ -35,7 +35,8 @@ export function TeamSwitcher({
   const selectedTeam = availableTeams.find((item) => item.id === selectedTeamId) ?? team;
 
   useEffect(() => {
-    const savedTeamId = window.localStorage.getItem(currentTeamStorageKey) ?? getCookie(currentTeamStorageKey);
+    const savedTeamId =
+      window.localStorage.getItem(currentTeamStorageKey) ?? getCookie(currentTeamStorageKey);
     if (savedTeamId) {
       setSelectedTeamId(savedTeamId);
     }
@@ -50,18 +51,19 @@ export function TeamSwitcher({
         return;
       }
 
-      const nextTeamId = savedTeamId && items.some((item) => item.id === savedTeamId)
-        ? savedTeamId
-        : items[0].id;
+      const nextTeamId =
+        savedTeamId && items.some((item) => item.id === savedTeamId) ? savedTeamId : items[0].id;
 
       setAvailableTeams(items);
       setSelectedTeamId(nextTeamId);
       persistTeamId(nextTeamId);
     }
 
-    loadTeams().catch(() => {
-      setAvailableTeams(teams);
-    }).finally(() => setLoadingTeams(false));
+    loadTeams()
+      .catch(() => {
+        setAvailableTeams(teams);
+      })
+      .finally(() => setLoadingTeams(false));
   }, [teams]);
 
   function selectTeam(teamId: string) {
@@ -97,7 +99,9 @@ export function TeamSwitcher({
         onClose={() => setOpen(false)}
         height="auto"
       >
-        <p className="muted" style={{ margin: "0 0 16px" }}>Bạn đang tham gia {availableTeams.length} đội bóng.</p>
+        <p className="muted" style={{ margin: "0 0 16px" }}>
+          Bạn đang tham gia {availableTeams.length} đội bóng.
+        </p>
         {loadingTeams ? <LogoLoading label="Đang tải danh sách đội..." size="sm" /> : null}
         <div className="page-stack" style={{ gap: 10 }}>
           {availableTeams.map((item) => {
@@ -113,7 +117,9 @@ export function TeamSwitcher({
                 <span className="team-avatar">{initials(item.name)}</span>
                 <span style={{ minWidth: 0, flex: 1 }}>
                   <span className="team-option-name">{item.name}</span>
-                  <span className="team-option-meta">{roleLabel[item.myRole]} · {item.area}</span>
+                  <span className="team-option-meta">
+                    {roleLabel[item.myRole]} · {item.area}
+                  </span>
                 </span>
                 {active ? <CheckOutlined style={{ color: "var(--pink)" }} /> : null}
               </button>
@@ -127,13 +133,17 @@ export function TeamSwitcher({
 
 function persistTeamId(teamId: string) {
   window.localStorage.setItem(currentTeamStorageKey, teamId);
-  document.cookie = `${currentTeamStorageKey}=${encodeURIComponent(teamId)}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  document.cookie =
+    currentTeamStorageKey +
+    "=" +
+    encodeURIComponent(teamId) +
+    "; Path=/; Max-Age=31536000; SameSite=Lax";
 }
 
 function getCookie(name: string) {
   const value = document.cookie
     .split("; ")
-    .find((row) => row.startsWith(`${name}=`))
+    .find((row) => row.startsWith(name + "="))
     ?.split("=")[1];
 
   return value ? decodeURIComponent(value) : null;

@@ -19,6 +19,14 @@ export type Match = {
   formation: FormationId;
   attendance: Record<string, AttendanceStatus>;
   lineup: Record<string, string | null>;
+  paymentSummary?: {
+    totalAmount: number;
+    dueAmount: number;
+    paidAmount: number;
+    chargeableCount: number;
+    paidCount: number;
+    isFullyPaid: boolean;
+  };
 };
 
 export type FormationSlot = {

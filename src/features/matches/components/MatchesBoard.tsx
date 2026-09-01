@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
-import { Button, Segmented, Tag } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { Button, Tag } from "antd";
 import { CalendarOutlined, PlusOutlined } from "@ant-design/icons";
 import type { Match } from "@/features/matches/types";
 import { MatchSummaryCard } from "@/features/matches/components/MatchSummaryCard";
@@ -11,37 +11,76 @@ import { formatVnd } from "@/lib/utils/format";
 
 type View = "scheduled" | "history";
 
-export function MatchesBoard({ matches }: { matches: Match[] }) {
+export function MatchesBoard({
+  matches,
+  currentMonthKey,
+}: {
+  matches: Match[];
+  currentMonthKey: string;
+}) {
   const [view, setView] = useState<View>("scheduled");
-  const currentMonth = new Intl.DateTimeFormat("vi-VN", { month: "numeric" }).format(new Date());
+  const [visibleCount, setVisibleCount] = useState(10);
+  const currentMonth = monthNumber(currentMonthKey);
 
-  const upcoming = useMemo(() => matches.filter((match) => match.status === "scheduled"), [matches]);
-  const history = useMemo(() => matches.filter((match) => match.status !== "scheduled"), [matches]);
-  const currentMatches = view === "scheduled" ? upcoming : history;
-  const monthTotal = useMemo(
-    () => matches.reduce((sum, match) => sum + match.pitchCost, 0),
+  const upcoming = useMemo(
+    () =>
+      matches
+        .filter((match) => match.status === "scheduled")
+        .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)),
     [matches],
+  );
+  const history = useMemo(
+    () =>
+      matches
+        .filter((match) => match.status !== "scheduled")
+        .sort((a, b) => `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`)),
+    [matches],
+  );
+  const currentMatches = view === "scheduled" ? upcoming : history;
+  const visibleMatches = currentMatches.slice(0, visibleCount);
+  const hasMoreMatches = visibleCount < currentMatches.length;
+
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [view]);
+
+  const currentMonthMatches = useMemo(
+    () => matches.filter((match) => match.date.startsWith(currentMonthKey)),
+    [currentMonthKey, matches],
+  );
+  const monthTotal = useMemo(
+    () => currentMonthMatches.reduce((sum, match) => sum + match.pitchCost, 0),
+    [currentMonthMatches],
   );
 
   return (
     <div className="page-stack matches-board">
       <section className="matches-stat-grid">
-        <StatCard label="Tháng này" value={`${matches.length} trận`} />
+        <StatCard label="Tháng này" value={`${currentMonthMatches.length} trận`} />
         <StatCard label={`Chi phí T${currentMonth}`} value={formatVnd(monthTotal)} />
         <StatCard label="Đã qua" value={`${history.length} trận`} />
       </section>
 
-      <Segmented
-        className="matches-segmented"
-        block
-        size="large"
-        value={view}
-        onChange={(value) => setView(value as View)}
-        options={[
-          { label: "Sắp diễn ra", value: "scheduled" },
-          { label: "Đã qua", value: "history" },
-        ]}
-      />
+      <div className="matches-segmented" role="tablist" aria-label="Lọc trận đấu">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "scheduled"}
+          className={view === "scheduled" ? "matches-tab is-active" : "matches-tab"}
+          onClick={() => setView("scheduled")}
+        >
+          Sắp diễn ra
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "history"}
+          className={view === "history" ? "matches-tab is-active" : "matches-tab"}
+          onClick={() => setView("history")}
+        >
+          Đã qua
+        </button>
+      </div>
 
       <section className="page-stack">
         <div className="section-header">
@@ -57,11 +96,21 @@ export function MatchesBoard({ matches }: { matches: Match[] }) {
         </div>
 
         {currentMatches.length ? (
-          <div className="matches-grid">
-            {currentMatches.map((match) => (
-              <MatchSummaryCard key={match.id} match={match} />
-            ))}
-          </div>
+          <>
+            <div className="matches-grid">
+              {visibleMatches.map((match) => (
+                <MatchSummaryCard key={match.id} match={match} />
+              ))}
+            </div>
+            {hasMoreMatches ? (
+              <Button
+                className="matches-load-more"
+                onClick={() => setVisibleCount((count) => count + 10)}
+              >
+                Xem thêm 10 trận
+              </Button>
+            ) : null}
+          </>
         ) : (
           <EmptyState
             title={view === "scheduled" ? "Chưa có trận sắp diễn ra" : "Chưa có trận đã qua"}
@@ -84,6 +133,10 @@ export function MatchesBoard({ matches }: { matches: Match[] }) {
       </section>
     </div>
   );
+}
+
+function monthNumber(monthKey: string) {
+  return Number(monthKey.split("-")[1]);
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {

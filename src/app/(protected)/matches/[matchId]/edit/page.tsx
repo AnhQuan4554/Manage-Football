@@ -1,23 +1,38 @@
 import { PageHeader } from "@/components/common/PageHeader";
 import { MatchForm } from "@/features/matches/components/MatchForm";
-import { getMatchById } from "@/features/matches/services/matchService";
+import { getActiveMembers } from "@/features/members/services/memberService";
+import { getMatchById, getMatchDetail } from "@/features/matches/services/matchService";
 import { getCurrentTeam } from "@/features/team-profile/services/teamService";
 
 export default async function EditMatchPage({ params }: { params: Promise<{ matchId: string }> }) {
   const { matchId } = await params;
-  const [matchResponse, teamResponse] = await Promise.all([getMatchById(matchId), getCurrentTeam()]);
+  const [matchResponse, detailResponse, teamResponse, membersResponse] = await Promise.all([
+    getMatchById(matchId),
+    getMatchDetail(matchId),
+    getCurrentTeam(),
+    getActiveMembers(),
+  ]);
   const match = matchResponse.data;
+  const detail = detailResponse.data;
   const team = teamResponse.data;
+  const activeMembers = membersResponse.data ?? [];
 
   if (!match || !team) {
     return <PageHeader title="Không tìm thấy trận" />;
   }
 
+  const participantMemberIds =
+    detail?.participants
+      .filter(
+        (participant) => participant.response === "going" && Boolean(participant.membershipId),
+      )
+      .map((participant) => participant.membershipId as string) ?? [];
+
   return (
     <div className="page-stack">
       <PageHeader
         title={match.status === "completed" ? "Cập nhật chi phí trận đã qua" : "Chỉnh sửa trận"}
-        subtitle={`vs ${match.opponentName}`}
+        subtitle={"vs " + match.opponentName}
       />
       <MatchForm
         teamId={team.id}
@@ -26,6 +41,8 @@ export default async function EditMatchPage({ params }: { params: Promise<{ matc
         showCostFields={match.status === "completed"}
         recalculateSplitOnSuccess={match.status === "completed"}
         submitLabel={match.status === "completed" ? "Lưu chi phí & chia tiền" : "Lưu thay đổi"}
+        memberOptions={activeMembers}
+        initialParticipantMemberIds={participantMemberIds}
         initialValues={{
           opponentName: match.opponentName,
           date: match.date,

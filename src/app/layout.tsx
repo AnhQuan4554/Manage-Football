@@ -1,13 +1,18 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Roboto } from "next/font/google";
 import "antd/dist/reset.css";
 import "@/styles/globals.css";
 import { Providers } from "@/app/providers";
 import { uiColors } from "@/lib/constants/colors";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin", "latin-ext"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin", "latin-ext"] });
+const roboto = Roboto({
+  variable: "--font-roboto",
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  weight: ["300", "400", "500", "700"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Pinkstorm FC Manager",
@@ -30,7 +35,16 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="vi" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className={roboto.variable} suppressHydrationWarning>
+        <Script
+          id="hydration-extension-cleanup"
+          strategy="beforeInteractive"
+          data-hydration-extension-cleanup
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){function clean(){document.querySelectorAll('[fdprocessedid]').forEach(function(el){el.removeAttribute('fdprocessedid')})}clean();new MutationObserver(clean).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['fdprocessedid']})})();",
+          }}
+        />
         <AntdRegistry>
           <Providers>{children}</Providers>
         </AntdRegistry>

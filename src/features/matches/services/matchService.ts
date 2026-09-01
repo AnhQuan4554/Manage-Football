@@ -7,7 +7,9 @@ import {
 } from "@/features/matches/services/matchApiService";
 import type { Match, AttendanceStatus } from "@/features/matches/types";
 
-function mapDbStatus(status: "draft" | "open" | "lineup_ready" | "completed" | "cancelled"): Match["status"] {
+function mapDbStatus(
+  status: "draft" | "open" | "lineup_ready" | "completed" | "cancelled",
+): Match["status"] {
   if (status === "completed") return "completed";
   if (status === "cancelled") return "cancelled";
   return "scheduled";
@@ -25,7 +27,8 @@ function formatDateTimeInZone(value: string, timeZone = "Asia/Ho_Chi_Minh") {
     hour12: false,
   }).formatToParts(date);
 
-  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
 
   return {
     date: `${get("year")}-${get("month")}-${get("day")}`,
@@ -46,6 +49,26 @@ function buildAttendance(participants: MatchDetailResponse["participants"]) {
   ) as Match["attendance"];
 }
 
+function buildPaymentSummary(
+  collection: MatchDetailResponse["collection"],
+): Match["paymentSummary"] {
+  if (!collection) return undefined;
+
+  const chargeableItems = collection.items.filter((item) => item.chargeable && item.amountDue > 0);
+  const paidCount = chargeableItems.filter((item) => item.amountPaid >= item.amountDue).length;
+  const dueAmount = chargeableItems.reduce((sum, item) => sum + item.amountDue, 0);
+  const paidAmount = chargeableItems.reduce((sum, item) => sum + item.amountPaid, 0);
+
+  return {
+    totalAmount: collection.totalAmount,
+    dueAmount,
+    paidAmount,
+    chargeableCount: chargeableItems.length,
+    paidCount,
+    isFullyPaid: chargeableItems.length > 0 && paidCount === chargeableItems.length,
+  };
+}
+
 function mapMatch(detail: MatchDetailResponse): Match {
   return {
     id: detail.match.id,
@@ -58,9 +81,17 @@ function mapMatch(detail: MatchDetailResponse): Match {
     opponentFee: 0,
     note: detail.match.note ?? "",
     status: mapDbStatus(detail.match.status),
-    zaloVoteStatus: detail.match.status === "cancelled" ? "error" : detail.match.status === "open" || detail.match.status === "lineup_ready" || detail.match.status === "completed" ? "created" : "none",
+    zaloVoteStatus:
+      detail.match.status === "cancelled"
+        ? "error"
+        : detail.match.status === "open" ||
+            detail.match.status === "lineup_ready" ||
+            detail.match.status === "completed"
+          ? "created"
+          : "none",
     formation: (detail.lineup?.formationCode as Match["formation"]) ?? "2-3-1",
     attendance: buildAttendance(detail.participants),
+    paymentSummary: buildPaymentSummary(detail.collection),
     lineup: detail.lineup
       ? Object.fromEntries(detail.lineup.slots.map((slot) => [slot.slotKey, slot.participantId]))
       : {},

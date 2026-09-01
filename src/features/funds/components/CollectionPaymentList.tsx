@@ -4,6 +4,7 @@ import { Button, DatePicker, Input, Modal, Space, Tag, TimePicker, message } fro
 import dayjs, { type Dayjs } from "dayjs";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { LogoLoading } from "@/components/common/LogoLoading";
 import { formatVnd } from "@/lib/utils/format";
 import type { AppResponse } from "@/lib/response";
 import type { MatchSplit } from "@/features/funds/types";
@@ -77,15 +78,18 @@ export function CollectionPaymentList({
       .toISOString();
 
     try {
-      const response = await fetch(`/api/teams/${teamId}/matches/${matchId}/collection-items/${item.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          paidAt,
-          paymentNote,
-        }),
-      });
+      const response = await fetch(
+        `/api/teams/${teamId}/matches/${matchId}/collection-items/${item.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            paidAt,
+            paymentNote,
+          }),
+        },
+      );
       const payload = (await response.json()) as PaymentPayload;
 
       if (!response.ok || !payload.success) {
@@ -111,10 +115,12 @@ export function CollectionPaymentList({
           const paidAt = formatPaidAt(item.paidAt);
           const canMarkPaid = item.status === "unpaid" || item.status === "partial";
           const canUndo = item.status === "paid" || item.status === "overpaid";
+          const isSubmitting = submittingId === item.id;
 
           return (
             <div
               key={item.id}
+              aria-busy={isSubmitting}
               style={{
                 alignItems: "center",
                 border: "1px solid rgba(15, 23, 42, 0.08)",
@@ -131,23 +137,33 @@ export function CollectionPaymentList({
                   <Tag color={meta.color}>{meta.label}</Tag>
                 </Space>
                 <p className="muted" style={{ margin: "6px 0 0" }}>
-                  Phải đóng {formatVnd(item.amountDue)} · Đã đóng {formatVnd(item.amountPaid)} · {getBalanceLabel(item)}
+                  Phải đóng {formatVnd(item.amountDue)} · Đã đóng {formatVnd(item.amountPaid)} ·{" "}
+                  {getBalanceLabel(item)}
                 </p>
                 {paidAt ? (
                   <p className="muted" style={{ margin: "4px 0 0" }}>
                     Xác nhận lần đầu: {paidAt}
                   </p>
                 ) : null}
+                {isSubmitting ? <LogoLoading label="Đang cập nhật tiền..." size="sm" /> : null}
               </div>
 
               <Space wrap style={{ justifyContent: "flex-end" }}>
                 {canMarkPaid ? (
-                  <Button type="primary" onClick={() => openPaidModal(item)} disabled={submittingId === item.id}>
+                  <Button
+                    type="primary"
+                    onClick={() => openPaidModal(item)}
+                    disabled={isSubmitting}
+                  >
                     {item.status === "partial" ? "Xác nhận đủ" : "Đã đóng"}
                   </Button>
                 ) : null}
                 {canUndo ? (
-                  <Button danger onClick={() => updatePayment(item, "mark_unpaid")} loading={submittingId === item.id}>
+                  <Button
+                    danger
+                    onClick={() => updatePayment(item, "mark_unpaid")}
+                    disabled={isSubmitting}
+                  >
                     Hoàn tác
                   </Button>
                 ) : null}
@@ -158,7 +174,7 @@ export function CollectionPaymentList({
       </div>
 
       <Modal
-        title={activeItem ? `Xác nhận ${activeItem.participantName} đã đóng` : "Xác nhận đã đóng"}
+        title={activeItem ? `Xác nhận ${activeItem.participantName} đã đóng` : "Xác nhận đủ ??ng"}
         open={Boolean(activeItem)}
         onCancel={() => setActiveItem(null)}
         footer={null}
@@ -171,11 +187,21 @@ export function CollectionPaymentList({
             </p>
             <div>
               <label>Ngày đóng</label>
-              <DatePicker value={paidDate} onChange={(value) => value && setPaidDate(value)} style={{ width: "100%" }} format="DD/MM/YYYY" />
+              <DatePicker
+                value={paidDate}
+                onChange={(value) => value && setPaidDate(value)}
+                style={{ width: "100%" }}
+                format="DD/MM/YYYY"
+              />
             </div>
             <div>
               <label>Giờ đóng</label>
-              <TimePicker value={paidTime} onChange={(value) => value && setPaidTime(value)} style={{ width: "100%" }} format="HH:mm" />
+              <TimePicker
+                value={paidTime}
+                onChange={(value) => value && setPaidTime(value)}
+                style={{ width: "100%" }}
+                format="HH:mm"
+              />
             </div>
             <div>
               <label>Ghi chú</label>
@@ -186,8 +212,16 @@ export function CollectionPaymentList({
                 placeholder="VD: chuyển khoản, tiền mặt, gộp nhiều trận..."
               />
             </div>
-            <Button type="primary" block loading={submittingId === activeItem.id} onClick={() => updatePayment(activeItem, "mark_paid")}>
-              Xác nhận đã đóng đủ
+            {submittingId === activeItem.id ? (
+              <LogoLoading label="Đang xác nhận tiền..." size="sm" />
+            ) : null}
+            <Button
+              type="primary"
+              block
+              disabled={submittingId === activeItem.id}
+              onClick={() => updatePayment(activeItem, "mark_paid")}
+            >
+              Xác nhận Đã đóng đủ
             </Button>
           </Space>
         ) : null}

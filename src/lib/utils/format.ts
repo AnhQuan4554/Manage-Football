@@ -31,3 +31,18 @@ export function weekdayShort(date: string) {
     weekday: "short",
   }).format(value);
 }
+
+export function formatMoneyInput(value: string | number | null | undefined) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+export function parseMoneyInput(value: string | number | null | undefined) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  return digits ? Number(digits) : 0;
+}
+
+export function normalizeMoneyInput(value: string | number | null | undefined) {
+  const amount = parseMoneyInput(value);
+  return amount ? formatMoneyInput(amount) : "";
+}

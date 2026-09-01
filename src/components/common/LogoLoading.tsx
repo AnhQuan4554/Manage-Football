@@ -12,12 +12,14 @@ const sizeClassName: Record<NonNullable<LogoLoadingProps["size"]>, string> = {
   lg: "logo-loading-lg",
 };
 
-export function LogoLoading({ label = "Đang tải dữ liệu...", size = "md", fullPage = false }: LogoLoadingProps) {
-  const className = [
-    "logo-loading",
-    sizeClassName[size],
-    fullPage ? "logo-loading-full" : "",
-  ].filter(Boolean).join(" ");
+export function LogoLoading({
+  label = "Đang tải dữ liệu...",
+  size = "md",
+  fullPage = false,
+}: LogoLoadingProps) {
+  const className = ["logo-loading", sizeClassName[size], fullPage ? "logo-loading-full" : ""]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div className={className} role="status" aria-live="polite" aria-busy="true">

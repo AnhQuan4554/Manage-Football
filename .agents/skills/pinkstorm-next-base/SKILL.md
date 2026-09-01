@@ -131,6 +131,17 @@ When editing an existing screen, preserve the desktop experience while improving
 
 Use Ant Design components where they already fit the project. Do not introduce a new UI library without asking.
 
+Typography rule:
+
+- The whole app uses Roboto from `next/font/google`; keep `var(--font-roboto)` as the global body font and do not reintroduce another primary UI font without asking.
+- Normal body text, labels, metadata, descriptions, and table/list content should stay around 12-16px with font weight 400-500. Use 700 only for clear emphasis, headings, numbers, and primary action text.
+- Avoid unusual font weights such as 720, 750, 800, 820, 850, 900, or 950 in CSS/JSX. Avoid oversized type unless it is a true page hero; compact cards and detail rows should use restrained sizes.
+
+Loading rule for API and route work:
+
+- Use the existing common `LogoLoading` component from `src/components/common/LogoLoading.tsx` for any route-level loading, client-side fetch loading, or click action that calls an API and waits for a response.
+- Do not introduce Ant Design button spinners, Skeleton-based loading, or ad hoc text-only loading for new API integrations. Disable the triggering control while `LogoLoading` is visible.
+
 When changing UI, inspect nearby pages/components first so the new work feels native to the app.
 
 Color rule for every UI change:
@@ -146,10 +157,19 @@ API and server rule:
 
 ## Commands
 
-Use the existing scripts from `package.json` when relevant:
+Use the existing scripts from `package.json` when relevant, but do not treat command execution as the default self-test.
 
-- `pnpm dev` or `npm run dev` for local development.
-- `pnpm build` or `npm run build` for production build checks.
+Self-test rule:
+
+- Self-test means reviewing the source changes yourself: scan related files, imports, types, props, CSS selectors, API callers, response shapes, missing/unused code, obvious runtime risks, and consistency with this skill.
+- Do not run `pnpm build`, `npm run build`, `pnpm dev`, `npm run dev`, or any command that starts/restarts a local server unless the user explicitly approves that exact action first.
+- Do not run build while the user has a local dev server open unless they explicitly ask for it; it can rewrite `.next` and break the running dev session's chunks.
+- Prefer non-server, non-build checks such as `rg`, focused file reads, formatter checks, and narrowly scoped static inspection. Run `pnpm lint`, `pnpm exec tsc --noEmit`, or similar only when it is appropriate and does not mutate `.next` or start a server.
+
+Available project scripts, when explicitly appropriate:
+
+- `pnpm dev` or `npm run dev` for local development, only after user approval.
+- `pnpm build` or `npm run build` for production build checks, only after user approval.
 - `pnpm lint` or `npm run lint` for linting, if available and working.
 - `pnpm format` or `npm run format` for formatting when needed.
 

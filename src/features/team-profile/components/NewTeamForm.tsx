@@ -58,7 +58,7 @@ export function NewTeamForm() {
   }
 
   return (
-    <form className="surface form-surface" onSubmit={handleSubmit}>
+    <form className="surface form-surface" onSubmit={handleSubmit} aria-busy={submitting}>
       {error ? <Alert type="error" message={error} showIcon style={{ marginBottom: 14 }} /> : null}
       {submitting ? <LogoLoading label="Đang lưu đội..." size="sm" /> : null}
 
@@ -72,9 +72,15 @@ export function NewTeamForm() {
       <input id="homePitch" name="homePitch" className="field" placeholder="Ví dụ: Sân Phạm Tu" />
 
       <label htmlFor="intro">Giới thiệu</label>
-      <textarea id="intro" name="intro" className="field" rows={4} placeholder="Mô tả ngắn về đội." />
+      <textarea
+        id="intro"
+        name="intro"
+        className="field"
+        rows={4}
+        placeholder="Mô tả ngắn về đội."
+      />
 
-      <Button type="primary" htmlType="submit" loading={submitting} block>
+      <Button type="primary" htmlType="submit" disabled={submitting} block>
         Lưu đội
       </Button>
     </form>
