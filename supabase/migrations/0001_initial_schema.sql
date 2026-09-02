@@ -107,6 +107,8 @@ create table public.matches (
   team_id uuid not null references public.teams(id) on delete cascade,
   opponent_name text not null,
   opponent_phone text,
+  home_score integer not null default 0 check (home_score >= 0),
+  away_score integer not null default 0 check (away_score >= 0),
   match_date_time timestamptz not null,
   venue_name text not null,
   address text,

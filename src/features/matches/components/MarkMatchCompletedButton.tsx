@@ -56,7 +56,7 @@ export function MarkMatchCompletedButton({ teamId, matchId }: Props) {
         disabled={pending}
         onClick={markCompleted}
       >
-        Đã đá & nhập tiền
+        Đã đá
       </Button>
     </span>
   );

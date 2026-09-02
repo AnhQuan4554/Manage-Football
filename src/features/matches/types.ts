@@ -8,6 +8,8 @@ export type Match = {
   teamId: string;
   opponentName: string;
   opponentPhone: string;
+  homeScore: number;
+  awayScore: number;
   date: string;
   time: string;
   pitch: string;

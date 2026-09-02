@@ -46,6 +46,8 @@ export default async function EditMatchPage({ params }: { params: Promise<{ matc
         initialValues={{
           opponentName: match.opponentName,
           opponentPhone: match.opponentPhone,
+          homeScore: String(match.homeScore ?? 0),
+          awayScore: String(match.awayScore ?? 0),
           date: match.date,
           time: match.time,
           venueName: match.pitch,

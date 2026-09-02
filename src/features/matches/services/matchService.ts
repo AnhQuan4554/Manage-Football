@@ -75,6 +75,8 @@ function mapMatch(detail: MatchDetailResponse): Match {
     teamId: detail.match.teamId,
     opponentName: detail.match.opponentName,
     opponentPhone: detail.match.opponentPhone ?? "",
+    homeScore: detail.match.homeScore ?? 0,
+    awayScore: detail.match.awayScore ?? 0,
     ...formatDateTimeInZone(detail.match.matchDateTime),
     pitch: detail.match.venueName,
     address: detail.match.address ?? "",

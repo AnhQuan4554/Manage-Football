@@ -8,7 +8,7 @@ import {
   WalletOutlined,
 } from "@ant-design/icons";
 import type { Match } from "@/features/matches/types";
-import { formatDateShort, formatVnd, weekdayShort } from "@/lib/utils/format";
+import { formatDateShort, formatVnd } from "@/lib/utils/format";
 
 const statusMap: Record<Match["status"], { label: string; className: string }> = {
   scheduled: { label: "Sắp diễn ra", className: "match-card-status--scheduled" },
@@ -36,15 +36,23 @@ export function MatchSummaryCard({ match }: { match: Match }) {
   const participantLabel = `${confirmed} tham gia`;
   const paymentStatus = getPaymentStatus(match);
   const moneyAmount = match.paymentSummary?.totalAmount ?? match.pitchCost;
+  const detailHref = `/matches/${match.id}`;
 
   return (
     <article
       className={isCompleted ? "surface match-card match-card-completed" : "surface match-card"}
     >
-      <Link className="match-card-main-link" href={`/matches/${match.id}`}>
+      <Link
+        className="match-card-overlay-link"
+        href={detailHref}
+        aria-label={`Xem chi tiết trận vs ${match.opponentName}`}
+      />
+
+      <div className="match-card-main-link">
         <div className="match-card-date">
-          <span>{weekdayShort(match.date)}</span>
-          <strong>{formatDateShort(match.date)}</strong>
+          <b className="match-card-score">
+            {match.homeScore ?? 0} : {match.awayScore ?? 0}
+          </b>
         </div>
         <div className="match-card-content">
           <div className="match-card-titleline">
@@ -62,7 +70,7 @@ export function MatchSummaryCard({ match }: { match: Match }) {
             </span>
           </p>
         </div>
-      </Link>
+      </div>
 
       <div className="match-card-right">
         {isCompleted ? (
@@ -74,7 +82,11 @@ export function MatchSummaryCard({ match }: { match: Match }) {
           <TeamOutlined /> {participantLabel}
         </span>
         {isCompleted ? (
-          <Link href={`/matches/${match.id}/edit`} className="match-card-edit-link">
+          <Link
+            href={`/matches/${match.id}/edit`}
+            className="match-card-edit-link"
+            prefetch={false}
+          >
             <Button size="small" icon={<EditOutlined />}>
               Sửa người/chia tiền
             </Button>

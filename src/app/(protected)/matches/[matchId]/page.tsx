@@ -14,7 +14,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { MarkMatchCompletedButton } from "@/features/matches/components/MarkMatchCompletedButton";
 import { MatchParticipantsEditor } from "@/features/matches/components/MatchParticipantsEditor";
 import { OpponentContactMenu } from "@/features/matches/components/OpponentContactMenu";
-import { getActiveMembers } from "@/features/members/services/memberService";
+import { listTeamMembers } from "@/features/members/services/memberApiService";
 import { getMatchDetail } from "@/features/matches/services/matchService";
 import { formatDateTime, formatVnd } from "@/lib/utils/format";
 
@@ -77,7 +77,9 @@ export default async function MatchDetailPage({
   if (!detail) return <PageHeader title="Không tìm thấy trận" />;
 
   const scheduledAt = splitDateTime(detail.match.matchDateTime);
-  const members = (await getActiveMembers()).data ?? [];
+  const members = ((await listTeamMembers(detail.match.teamId)).data ?? []).filter(
+    (member) => member.status === "active",
+  );
   const participants = detail.participants;
   const isCompleted = detail.match.status === "completed";
   const goingParticipants = participants.filter((participant) => participant.response === "going");
@@ -128,6 +130,12 @@ export default async function MatchDetailPage({
           <div className="match-detail-time">
             <strong>{scheduledAt.time}</strong>
             <span>Giờ đá</span>
+            <div className="match-detail-score">
+              <strong>
+                {detail.match.homeScore ?? 0} : {detail.match.awayScore ?? 0}
+              </strong>
+              <span>Tỉ số</span>
+            </div>
           </div>
           <div className="match-detail-team">
             <span className="match-detail-team-badge match-detail-team-badge-muted">

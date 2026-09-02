@@ -4,11 +4,7 @@ import { useRouter } from "next/navigation";
 import { Drawer } from "antd";
 import { CheckOutlined, SwapOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
-import { LogoLoading } from "@/components/common/LogoLoading";
 import type { Team } from "@/features/team-profile/types";
-import type { AppResponse } from "@/lib/response";
-
-type TeamsPayload = AppResponse<Team[]>;
 const currentTeamStorageKey = "currentTeamId";
 
 const roleLabel: Record<Team["myRole"], string> = {
@@ -31,40 +27,18 @@ export function TeamSwitcher({
   const [open, setOpen] = useState(false);
   const [availableTeams, setAvailableTeams] = useState(teams);
   const [selectedTeamId, setSelectedTeamId] = useState(team.id);
-  const [loadingTeams, setLoadingTeams] = useState(false);
   const selectedTeam = availableTeams.find((item) => item.id === selectedTeamId) ?? team;
 
   useEffect(() => {
     const savedTeamId =
       window.localStorage.getItem(currentTeamStorageKey) ?? getCookie(currentTeamStorageKey);
-    if (savedTeamId) {
-      setSelectedTeamId(savedTeamId);
-    }
+    const nextTeamId =
+      savedTeamId && teams.some((item) => item.id === savedTeamId) ? savedTeamId : team.id;
 
-    async function loadTeams() {
-      setLoadingTeams(true);
-      const response = await fetch("/api/teams", { cache: "no-store" });
-      const payload = (await response.json()) as TeamsPayload;
-      const items = payload.data ?? [];
-
-      if (!items.length) {
-        return;
-      }
-
-      const nextTeamId =
-        savedTeamId && items.some((item) => item.id === savedTeamId) ? savedTeamId : items[0].id;
-
-      setAvailableTeams(items);
-      setSelectedTeamId(nextTeamId);
-      persistTeamId(nextTeamId);
-    }
-
-    loadTeams()
-      .catch(() => {
-        setAvailableTeams(teams);
-      })
-      .finally(() => setLoadingTeams(false));
-  }, [teams]);
+    setAvailableTeams(teams);
+    setSelectedTeamId(nextTeamId);
+    persistTeamId(nextTeamId);
+  }, [team.id, teams]);
 
   function selectTeam(teamId: string) {
     setSelectedTeamId(teamId);
@@ -102,7 +76,6 @@ export function TeamSwitcher({
         <p className="muted" style={{ margin: "0 0 16px" }}>
           Bạn đang tham gia {availableTeams.length} đội bóng.
         </p>
-        {loadingTeams ? <LogoLoading label="Đang tải danh sách đội..." size="sm" /> : null}
         <div className="page-stack" style={{ gap: 10 }}>
           {availableTeams.map((item) => {
             const active = item.id === selectedTeamId;

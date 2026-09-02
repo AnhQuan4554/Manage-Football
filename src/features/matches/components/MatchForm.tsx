@@ -18,6 +18,8 @@ type ApiResponse<T> = {
 type MatchFormValues = {
   opponentName: string;
   opponentPhone: string;
+  homeScore: string;
+  awayScore: string;
   date: string;
   time: string;
   venueName: string;
@@ -73,6 +75,11 @@ function displayMemberName(member: TeamMember) {
   return member.nickname?.trim() || member.fullName;
 }
 
+function parseScoreInput(value: string) {
+  const numberValue = Number(value || 0);
+  return Number.isFinite(numberValue) ? Math.max(0, Math.trunc(numberValue)) : 0;
+}
+
 export function MatchForm({
   teamId,
   mode,
@@ -93,6 +100,8 @@ export function MatchForm({
   const [values, setValues] = useState<MatchFormValues>({
     opponentName: initialValues?.opponentName ?? "",
     opponentPhone: initialValues?.opponentPhone ?? "",
+    homeScore: initialValues?.homeScore ?? "0",
+    awayScore: initialValues?.awayScore ?? "0",
     date: initialValues?.date ?? (mode === "create" ? getNextWeekTuesday() : ""),
     time: initialValues?.time ?? (mode === "create" ? defaultMatchTime : ""),
     venueName: initialValues?.venueName ?? "",
@@ -150,6 +159,8 @@ export function MatchForm({
       const requestBody: Record<string, unknown> = {
         opponentName: values.opponentName,
         opponentPhone: values.opponentPhone,
+        homeScore: parseScoreInput(values.homeScore),
+        awayScore: parseScoreInput(values.awayScore),
         matchDateTime: toDateTime(values.date, values.time),
         venueName: values.venueName,
         address: values.address,
@@ -241,6 +252,32 @@ export function MatchForm({
           }
           placeholder="09xx xxx xxx"
         />
+        <div className="match-form-grid match-score-grid">
+          <div>
+            <label>Tỉ số đội nhà</label>
+            <input
+              className="field"
+              type="number"
+              min="0"
+              step="1"
+              value={values.homeScore}
+              onChange={(e) => setValues((current) => ({ ...current, homeScore: e.target.value }))}
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <label>Tỉ số đối</label>
+            <input
+              className="field"
+              type="number"
+              min="0"
+              step="1"
+              value={values.awayScore}
+              onChange={(e) => setValues((current) => ({ ...current, awayScore: e.target.value }))}
+              placeholder="0"
+            />
+          </div>
+        </div>
         <div className="match-form-grid">
           <div>
             <label>Ngày</label>

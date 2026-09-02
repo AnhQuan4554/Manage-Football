@@ -80,7 +80,7 @@ export function AppShellFrame({ team, teams, children }: { team: Team; teams: Te
               <RightOutlined className="muted" />
             </Link>
           ))}
-          <Link href="/login" onClick={() => setMoreOpen(false)}>
+          <Link href="/login" prefetch={false} onClick={() => setMoreOpen(false)}>
             <Button block>Đăng xuất</Button>
           </Link>
         </Space>
@@ -101,7 +101,7 @@ function ShellLink({
   const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
   return (
-    <Link className={active ? "nav-link active" : "nav-link"} href={item.href}>
+    <Link className={active ? "nav-link active" : "nav-link"} href={item.href} prefetch={false}>
       <item.icon />
       <span>{compact ? item.label.replace("Lịch đá", "Trận") : item.label}</span>
     </Link>

@@ -6,6 +6,8 @@ type DbMatch = {
   team_id: string;
   opponent_name: string;
   opponent_phone: string | null;
+  home_score: number | string;
+  away_score: number | string;
   match_date_time: string;
   venue_name: string;
   address: string | null;
@@ -129,6 +131,8 @@ type DbOpponent = {
 export type MatchApiInput = {
   opponentName: string;
   opponentPhone?: string | null;
+  homeScore?: number;
+  awayScore?: number;
   matchDateTime: string;
   venueName: string;
   address?: string | null;
@@ -213,7 +217,7 @@ export type MatchDetailResponse = {
 
 const defaultSplitStep = 1000;
 const matchSelect =
-  "id, team_id, opponent_name, opponent_phone, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at";
+  "id, team_id, opponent_name, opponent_phone, home_score, away_score, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at";
 const collectionSelect =
   "id, team_id, match_id, type, title, total_amount, status, rounding_step, note, due_date, closed_at, created_by, created_at, updated_at";
 const collectionItemSelect =
@@ -229,6 +233,8 @@ function normalizeMatch(row: DbMatch) {
     teamId: row.team_id,
     opponentName: row.opponent_name,
     opponentPhone: row.opponent_phone,
+    homeScore: asNumber(row.home_score),
+    awayScore: asNumber(row.away_score),
     matchDateTime: row.match_date_time,
     venueName: row.venue_name,
     address: row.address,
@@ -555,6 +561,10 @@ export async function createTeamMatch(
   if (!input.matchDateTime || !isValidDateTime(input.matchDateTime))
     return fail("matchDateTime is invalid");
   if (!input.venueName?.trim()) return fail("venueName is required");
+  if (input.homeScore !== undefined && (!Number.isInteger(input.homeScore) || input.homeScore < 0))
+    return fail("homeScore must be a non-negative integer");
+  if (input.awayScore !== undefined && (!Number.isInteger(input.awayScore) || input.awayScore < 0))
+    return fail("awayScore must be a non-negative integer");
   if (input.pitchCost !== undefined && (!Number.isFinite(input.pitchCost) || input.pitchCost < 0))
     return fail("pitchCost must be a non-negative number");
   if (
@@ -583,6 +593,8 @@ export async function createTeamMatch(
       team_id: teamId,
       opponent_name: input.opponentName.trim(),
       opponent_phone: input.opponentPhone?.trim() || null,
+      home_score: input.homeScore ?? 0,
+      away_score: input.awayScore ?? 0,
       match_date_time: input.matchDateTime,
       venue_name: input.venueName.trim(),
       address: input.address?.trim() || null,
@@ -647,6 +659,16 @@ export async function updateTeamMatch(
   }
   if (input.opponentPhone !== undefined) {
     patch.opponent_phone = input.opponentPhone?.trim() || null;
+  }
+  if (input.homeScore !== undefined) {
+    if (!Number.isInteger(input.homeScore) || input.homeScore < 0)
+      return fail("homeScore must be a non-negative integer");
+    patch.home_score = input.homeScore;
+  }
+  if (input.awayScore !== undefined) {
+    if (!Number.isInteger(input.awayScore) || input.awayScore < 0)
+      return fail("awayScore must be a non-negative integer");
+    patch.away_score = input.awayScore;
   }
   if (input.matchDateTime !== undefined) {
     if (!isValidDateTime(input.matchDateTime)) return fail("matchDateTime is invalid");
@@ -1189,6 +1211,16 @@ export async function updateCollectionItemsPayment(
     return fail("ITEM_NOT_FOUND", "Một số khoản đóng tiền không thuộc trận này");
   }
 
+  const invalidItems = currentItems.filter(
+    (item) => item.status !== "unpaid" && item.status !== "partial",
+  );
+  if (invalidItems.length) {
+    return fail(
+      "ITEM_STATUS_INVALID",
+      "Chỉ có thể xác nhận những khoản chưa đóng hoặc đóng thiếu",
+    );
+  }
+
   const { data: userData } = await supabase.auth.getUser();
   const currentUserId = userData.user?.id ?? null;
   const updatedItems: ReturnType<typeof normalizeCollectionItem>[] = [];
@@ -1264,6 +1296,17 @@ export async function updateCollectionItemPayment(
   }
 
   const currentItem = item as DbCollectionItem;
+  if (
+    input.action === "mark_paid" &&
+    currentItem.status !== "unpaid" &&
+    currentItem.status !== "partial"
+  ) {
+    return fail(
+      "ITEM_STATUS_INVALID",
+      "Chỉ có thể xác nhận những khoản chưa đóng hoặc đóng thiếu",
+    );
+  }
+
   const { data: userData } = await supabase.auth.getUser();
   const currentUserId = userData.user?.id ?? null;
 
