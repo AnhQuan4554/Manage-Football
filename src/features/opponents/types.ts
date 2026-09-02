@@ -8,6 +8,7 @@ export type Opponent = {
   lastPlayedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  matchCount: number;
 };
 
 export type CreateOpponentInput = {

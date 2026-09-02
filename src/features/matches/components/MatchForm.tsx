@@ -17,6 +17,7 @@ type ApiResponse<T> = {
 
 type MatchFormValues = {
   opponentName: string;
+  opponentPhone: string;
   date: string;
   time: string;
   venueName: string;
@@ -91,6 +92,7 @@ export function MatchForm({
   );
   const [values, setValues] = useState<MatchFormValues>({
     opponentName: initialValues?.opponentName ?? "",
+    opponentPhone: initialValues?.opponentPhone ?? "",
     date: initialValues?.date ?? (mode === "create" ? getNextWeekTuesday() : ""),
     time: initialValues?.time ?? (mode === "create" ? defaultMatchTime : ""),
     venueName: initialValues?.venueName ?? "",
@@ -147,6 +149,7 @@ export function MatchForm({
     try {
       const requestBody: Record<string, unknown> = {
         opponentName: values.opponentName,
+        opponentPhone: values.opponentPhone,
         matchDateTime: toDateTime(values.date, values.time),
         venueName: values.venueName,
         address: values.address,
@@ -226,6 +229,17 @@ export function MatchForm({
           value={values.opponentName}
           onChange={(e) => setValues((current) => ({ ...current, opponentName: e.target.value }))}
           placeholder="Hà Đông Legends"
+        />
+        <label>Số điện thoại đối</label>
+        <input
+          className="field"
+          type="tel"
+          inputMode="tel"
+          value={values.opponentPhone}
+          onChange={(e) =>
+            setValues((current) => ({ ...current, opponentPhone: e.target.value }))
+          }
+          placeholder="09xx xxx xxx"
         />
         <div className="match-form-grid">
           <div>

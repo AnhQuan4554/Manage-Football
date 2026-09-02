@@ -5,6 +5,7 @@ type DbMatch = {
   id: string;
   team_id: string;
   opponent_name: string;
+  opponent_phone: string | null;
   match_date_time: string;
   venue_name: string;
   address: string | null;
@@ -127,6 +128,7 @@ type DbOpponent = {
 
 export type MatchApiInput = {
   opponentName: string;
+  opponentPhone?: string | null;
   matchDateTime: string;
   venueName: string;
   address?: string | null;
@@ -152,6 +154,13 @@ export type MatchSplitInput = {
 export type CollectionItemPaymentInput = {
   action: "mark_paid" | "mark_unpaid";
   paidAt?: string;
+  paymentNote?: string | null;
+};
+
+export type BulkCollectionItemPaymentInput = {
+  action: "mark_paid";
+  itemIds: string[];
+  paidAt: string;
   paymentNote?: string | null;
 };
 
@@ -204,7 +213,7 @@ export type MatchDetailResponse = {
 
 const defaultSplitStep = 1000;
 const matchSelect =
-  "id, team_id, opponent_name, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at";
+  "id, team_id, opponent_name, opponent_phone, match_date_time, venue_name, address, pitch_cost, opponent_contribution, note, status, cancelled_reason, published_at, completed_at, created_by, updated_by, created_at, updated_at";
 const collectionSelect =
   "id, team_id, match_id, type, title, total_amount, status, rounding_step, note, due_date, closed_at, created_by, created_at, updated_at";
 const collectionItemSelect =
@@ -219,6 +228,7 @@ function normalizeMatch(row: DbMatch) {
     id: row.id,
     teamId: row.team_id,
     opponentName: row.opponent_name,
+    opponentPhone: row.opponent_phone,
     matchDateTime: row.match_date_time,
     venueName: row.venue_name,
     address: row.address,
@@ -572,6 +582,7 @@ export async function createTeamMatch(
     .insert({
       team_id: teamId,
       opponent_name: input.opponentName.trim(),
+      opponent_phone: input.opponentPhone?.trim() || null,
       match_date_time: input.matchDateTime,
       venue_name: input.venueName.trim(),
       address: input.address?.trim() || null,
@@ -633,6 +644,9 @@ export async function updateTeamMatch(
     if (!input.opponentName.trim()) return fail("opponentName is required");
     patch.opponent_name = input.opponentName.trim();
     opponentNameChanged = true;
+  }
+  if (input.opponentPhone !== undefined) {
+    patch.opponent_phone = input.opponentPhone?.trim() || null;
   }
   if (input.matchDateTime !== undefined) {
     if (!isValidDateTime(input.matchDateTime)) return fail("matchDateTime is invalid");
@@ -1111,6 +1125,97 @@ export async function recalculateMatchSplit(
   };
 
   return ok(response, "Đã cập nhật chia tiền");
+}
+
+export async function updateCollectionItemsPayment(
+  teamId: string,
+  matchId: string,
+  input: BulkCollectionItemPaymentInput,
+): Promise<AppResponse<ReturnType<typeof normalizeCollectionItem>[]>> {
+  if (input.action !== "mark_paid") {
+    return fail("action is invalid", "Hành động cập nhật tiền không hợp lệ");
+  }
+
+  if (!Array.isArray(input.itemIds) || !input.itemIds.length) {
+    return fail("itemIds is required", "Chọn ít nhất một người để xác nhận đã đóng");
+  }
+
+  const itemIds = Array.from(
+    new Set(
+      input.itemIds
+        .filter((itemId): itemId is string => typeof itemId === "string")
+        .map((itemId) => itemId.trim())
+        .filter(Boolean),
+    ),
+  );
+
+  if (!itemIds.length) {
+    return fail("itemIds is required", "Chọn ít nhất một người để xác nhận đã đóng");
+  }
+
+  if (!input.paidAt || Number.isNaN(Date.parse(input.paidAt))) {
+    return fail("paidAt is invalid", "Thời gian đóng tiền không hợp lệ");
+  }
+
+  const supabase = await createClient();
+  const { data: collection, error: collectionError } = await supabase
+    .from("collections")
+    .select(collectionSelect)
+    .eq("team_id", teamId)
+    .eq("match_id", matchId)
+    .maybeSingle();
+
+  if (collectionError) {
+    return fail(collectionError.message, "Không thể tải đợt thu tiền");
+  }
+
+  if (!collection) {
+    return fail("NOT_FOUND", "Chưa có đợt thu tiền cho trận này");
+  }
+
+  const collectionId = (collection as DbCollection).id;
+  const { data: items, error: itemsError } = await supabase
+    .from("collection_items")
+    .select(collectionItemSelect)
+    .eq("collection_id", collectionId)
+    .in("id", itemIds);
+
+  if (itemsError) {
+    return fail(itemsError.message, "Không thể tải danh sách khoản đóng tiền");
+  }
+
+  const currentItems = (items ?? []) as DbCollectionItem[];
+  if (currentItems.length !== itemIds.length) {
+    return fail("ITEM_NOT_FOUND", "Một số khoản đóng tiền không thuộc trận này");
+  }
+
+  const { data: userData } = await supabase.auth.getUser();
+  const currentUserId = userData.user?.id ?? null;
+  const updatedItems: ReturnType<typeof normalizeCollectionItem>[] = [];
+
+  for (const item of currentItems) {
+    const { data: updatedItem, error: updateError } = await supabase
+      .from("collection_items")
+      .update({
+        amount_paid: asNumber(item.amount_due),
+        status: "paid" as const,
+        paid_at: item.paid_at ?? input.paidAt,
+        paid_by: item.paid_by ?? currentUserId,
+        payment_note: input.paymentNote?.trim() || item.payment_note,
+      })
+      .eq("id", item.id)
+      .eq("collection_id", collectionId)
+      .select(collectionItemSelect)
+      .single();
+
+    if (updateError) {
+      return fail(updateError.message, "Không thể cập nhật một khoản đóng tiền");
+    }
+
+    updatedItems.push(normalizeCollectionItem(updatedItem as DbCollectionItem));
+  }
+
+  return ok(updatedItems, `Đã xác nhận ${updatedItems.length} người đã đóng`);
 }
 
 export async function updateCollectionItemPayment(

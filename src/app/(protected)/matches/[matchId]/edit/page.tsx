@@ -45,6 +45,7 @@ export default async function EditMatchPage({ params }: { params: Promise<{ matc
         initialParticipantMemberIds={participantMemberIds}
         initialValues={{
           opponentName: match.opponentName,
+          opponentPhone: match.opponentPhone,
           date: match.date,
           time: match.time,
           venueName: match.pitch,

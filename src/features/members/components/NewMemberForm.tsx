@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Alert, Button, message } from "antd";
+import { Alert, App, Button } from "antd";
 import { LogoLoading } from "@/components/common/LogoLoading";
 import type { AppResponse } from "@/lib/response";
 import type { Team } from "@/features/team-profile/types";
@@ -15,6 +15,7 @@ type CreateMemberPayload = AppResponse<TeamMember>;
 
 export function NewMemberForm() {
   const router = useRouter();
+  const { message } = App.useApp();
   const [teamId, setTeamId] = useState("");
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [submitting, setSubmitting] = useState(false);

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, DatePicker, Input, Modal, Space, Tag, TimePicker, message } from "antd";
+import { App, Button, Checkbox, DatePicker, Input, Modal, Space, Tag, TimePicker } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -13,6 +13,7 @@ import type { TeamMember } from "@/features/members/types";
 type PaymentItem = MatchSplit["items"][number];
 
 type PaymentPayload = AppResponse<PaymentItem>;
+type BulkPaymentPayload = AppResponse<PaymentItem[]>;
 
 const statusMeta: Record<PaymentItem["status"], { label: string; color: string }> = {
   unpaid: { label: "Chưa đóng", color: "default" },
@@ -52,12 +53,25 @@ export function CollectionPaymentList({
   members: TeamMember[];
 }) {
   const router = useRouter();
+  const { message } = App.useApp();
   const [activeItem, setActiveItem] = useState<PaymentItem | null>(null);
   const [paidDate, setPaidDate] = useState<Dayjs>(dayjs());
   const [paidTime, setPaidTime] = useState<Dayjs>(dayjs());
   const [paymentNote, setPaymentNote] = useState("");
   const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const memberById = new Map(members.map((member) => [member.id, member]));
+  const selectableItemIds = items
+    .filter((item) => item.status === "unpaid" || item.status === "partial")
+    .map((item) => item.id);
+  const selectableItemIdSet = new Set(selectableItemIds);
+  const selectedSelectableCount = selectedItemIds.filter((itemId) =>
+    selectableItemIdSet.has(itemId),
+  ).length;
+  const allSelectableSelected =
+    selectableItemIds.length > 0 && selectedSelectableCount === selectableItemIds.length;
+  const partiallySelected = selectedSelectableCount > 0 && !allSelectableSelected;
 
   function openPaidModal(item: PaymentItem) {
     const now = dayjs();
@@ -65,6 +79,55 @@ export function CollectionPaymentList({
     setPaidDate(now);
     setPaidTime(now);
     setPaymentNote(item.paymentNote ?? "");
+  }
+
+  function toggleSelectedItem(itemId: string, checked: boolean) {
+    setSelectedItemIds((current) =>
+      checked
+        ? Array.from(new Set([...current, itemId]))
+        : current.filter((selectedId) => selectedId !== itemId),
+    );
+  }
+
+  function toggleAllSelected(checked: boolean) {
+    setSelectedItemIds(checked ? selectableItemIds : []);
+  }
+
+  async function updateBulkPayments() {
+    const itemIds = selectedItemIds.filter((itemId) => selectableItemIdSet.has(itemId));
+
+    if (!itemIds.length) {
+      message.warning("Chọn ít nhất một người chưa đóng");
+      return;
+    }
+
+    setBulkSubmitting(true);
+    const paidAt = dayjs().second(0).millisecond(0).toISOString();
+
+    try {
+      const response = await fetch(`/api/teams/${teamId}/matches/${matchId}/collection-items`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "mark_paid",
+          itemIds,
+          paidAt,
+        }),
+      });
+      const payload = (await response.json()) as BulkPaymentPayload;
+
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.message ?? payload.error ?? "Không thể cập nhật tiền");
+      }
+
+      message.success(payload.message ?? "Đã cập nhật tiền");
+      setSelectedItemIds([]);
+      router.refresh();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "Không thể cập nhật tiền");
+    } finally {
+      setBulkSubmitting(false);
+    }
   }
 
   async function updatePayment(item: PaymentItem, action: "mark_paid" | "mark_unpaid") {
@@ -98,6 +161,7 @@ export function CollectionPaymentList({
 
       message.success(payload.message ?? "Đã cập nhật tiền");
       setActiveItem(null);
+      setSelectedItemIds((current) => current.filter((selectedId) => selectedId !== item.id));
       router.refresh();
     } catch (error) {
       message.error(error instanceof Error ? error.message : "Không thể cập nhật tiền");
@@ -109,6 +173,33 @@ export function CollectionPaymentList({
   return (
     <>
       <div className="page-stack">
+        <div
+          style={{
+            alignItems: "center",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 12,
+            justifyContent: "space-between",
+          }}
+        >
+          <Checkbox
+            checked={allSelectableSelected}
+            indeterminate={partiallySelected}
+            disabled={!selectableItemIds.length || bulkSubmitting}
+            onChange={(event) => toggleAllSelected(event.target.checked)}
+          >
+            Chọn người chưa đóng
+          </Checkbox>
+          <Button
+            type="primary"
+            onClick={updateBulkPayments}
+            disabled={!selectedSelectableCount || bulkSubmitting}
+          >
+            {selectedSelectableCount ? `Đã đóng (${selectedSelectableCount})` : "Đã đóng"}
+          </Button>
+        </div>
+        {bulkSubmitting ? <LogoLoading label="Đang cập nhật nhiều người..." size="sm" /> : null}
+
         {items.map((item) => {
           const member = item.membershipId ? memberById.get(item.membershipId) : undefined;
           const meta = statusMeta[item.status];
@@ -116,6 +207,7 @@ export function CollectionPaymentList({
           const canMarkPaid = item.status === "unpaid" || item.status === "partial";
           const canUndo = item.status === "paid" || item.status === "overpaid";
           const isSubmitting = submittingId === item.id;
+          const isSelectable = selectableItemIdSet.has(item.id);
 
           return (
             <div
@@ -127,10 +219,17 @@ export function CollectionPaymentList({
                 borderRadius: 16,
                 display: "grid",
                 gap: 12,
-                gridTemplateColumns: "minmax(0, 1fr) auto",
+                gridTemplateColumns: "auto minmax(0, 1fr) auto",
                 padding: 14,
               }}
             >
+              <Checkbox
+                checked={selectedItemIds.includes(item.id)}
+                disabled={!isSelectable || isSubmitting || bulkSubmitting}
+                onChange={(event) => toggleSelectedItem(item.id, event.target.checked)}
+                aria-label={`Chọn ${member?.nickname || item.participantName}`}
+              />
+
               <div style={{ minWidth: 0 }}>
                 <Space wrap size={8}>
                   <strong>{member?.nickname || item.participantName}</strong>
@@ -153,7 +252,7 @@ export function CollectionPaymentList({
                   <Button
                     type="primary"
                     onClick={() => openPaidModal(item)}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || bulkSubmitting}
                   >
                     {item.status === "partial" ? "Xác nhận đủ" : "Đã đóng"}
                   </Button>
@@ -162,7 +261,7 @@ export function CollectionPaymentList({
                   <Button
                     danger
                     onClick={() => updatePayment(item, "mark_unpaid")}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || bulkSubmitting}
                   >
                     Hoàn tác
                   </Button>
@@ -174,7 +273,7 @@ export function CollectionPaymentList({
       </div>
 
       <Modal
-        title={activeItem ? `Xác nhận ${activeItem.participantName} đã đóng` : "Xác nhận đủ ??ng"}
+        title={activeItem ? `Xác nhận ${activeItem.participantName} đã đóng` : "Xác nhận đủ đóng"}
         open={Boolean(activeItem)}
         onCancel={() => setActiveItem(null)}
         footer={null}

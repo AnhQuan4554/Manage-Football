@@ -13,6 +13,7 @@ import {
 import { PageHeader } from "@/components/common/PageHeader";
 import { MarkMatchCompletedButton } from "@/features/matches/components/MarkMatchCompletedButton";
 import { MatchParticipantsEditor } from "@/features/matches/components/MatchParticipantsEditor";
+import { OpponentContactMenu } from "@/features/matches/components/OpponentContactMenu";
 import { getActiveMembers } from "@/features/members/services/memberService";
 import { getMatchDetail } from "@/features/matches/services/matchService";
 import { formatDateTime, formatVnd } from "@/lib/utils/format";
@@ -83,7 +84,6 @@ export default async function MatchDetailPage({
   const notGoingCount = participants.filter(
     (participant) => participant.response === "not_going",
   ).length;
-  const waitingCount = participants.length - goingParticipants.length - notGoingCount;
   const collection = detail.collection;
   const paidCount =
     collection?.items.filter((item) => item.status === "paid" || item.status === "overpaid")
@@ -158,20 +158,28 @@ export default async function MatchDetailPage({
             <p className="muted">{detail.match.address || "Chưa có địa chỉ"}</p>
           </div>
         </div>
+        {detail.match.opponentPhone ? (
+          <div className="match-detail-row">
+            <span className="match-detail-icon">
+              <TeamOutlined />
+            </span>
+            <div>
+              <span className="text-kicker">Số đối</span>
+              <strong>
+                <OpponentContactMenu phone={detail.match.opponentPhone} />
+              </strong>
+              <p className="muted">Chạm để liên hệ Zalo hoặc gọi từ app</p>
+            </div>
+          </div>
+        ) : null}
         <div className="match-detail-row">
           <span className="match-detail-icon">
             <TeamOutlined />
           </span>
           <div>
             <span className="text-kicker">Tham gia</span>
-            <strong>
-              {isCompleted
-                ? `${goingParticipants.length} người đã đá`
-                : `${Math.min(goingParticipants.length, 7)}/7 người tham gia`}
-            </strong>
-            <p className="muted">
-              {notGoingCount} vắng · {waitingCount} chưa trả lời
-            </p>
+            <strong>{goingParticipants.length} người tham gia</strong>
+            <p className="muted">{notGoingCount} vắng</p>
           </div>
         </div>
         <div className="match-detail-row">
@@ -264,13 +272,7 @@ export default async function MatchDetailPage({
                 </span>
                 <div>
                   <strong>{participant.participantName}</strong>
-                  <p className="muted">
-                    {participant.response === "going"
-                      ? "Tham gia"
-                      : participant.response === "not_going"
-                        ? "Vắng"
-                        : "Chưa trả lời"}
-                  </p>
+                  <p className="muted">Tham gia</p>
                 </div>
               </div>
             ))

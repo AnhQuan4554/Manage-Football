@@ -33,9 +33,7 @@ function formatDisplayDate(date: string) {
 export function MatchSummaryCard({ match }: { match: Match }) {
   const confirmed = Object.values(match.attendance).filter((status) => status === "going").length;
   const isCompleted = match.status === "completed";
-  const participantLabel = isCompleted
-    ? `${confirmed} tham gia`
-    : `${Math.min(confirmed, 7)}/7 tham gia`;
+  const participantLabel = `${confirmed} tham gia`;
   const paymentStatus = getPaymentStatus(match);
   const moneyAmount = match.paymentSummary?.totalAmount ?? match.pitchCost;
 

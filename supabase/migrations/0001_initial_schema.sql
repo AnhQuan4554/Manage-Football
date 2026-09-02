@@ -106,6 +106,7 @@ create table public.matches (
   id uuid primary key default gen_random_uuid(),
   team_id uuid not null references public.teams(id) on delete cascade,
   opponent_name text not null,
+  opponent_phone text,
   match_date_time timestamptz not null,
   venue_name text not null,
   address text,

@@ -42,10 +42,8 @@ function formatRelativeDate(date: string) {
 export function FeaturedMatchHero({ match }: { match: Match }) {
   const confirmed = Object.values(match.attendance).filter((status) => status === "going").length;
   const absent = Object.values(match.attendance).filter((status) => status === "absent").length;
-  const maybe = Object.values(match.attendance).filter((status) => status === "maybe").length;
-  const unanswered = Object.values(match.attendance).filter((status) => status === "unknown").length;
-  const totalResponded = confirmed + absent + maybe;
-  const responseRate = Math.min(100, Math.round((totalResponded / Object.keys(match.attendance).length) * 100));
+  const totalDecided = confirmed + absent;
+  const participationRate = totalDecided ? Math.round((confirmed / totalDecided) * 100) : 0;
 
   return (
     <section className="featured-match-card hero-card">
@@ -90,14 +88,14 @@ export function FeaturedMatchHero({ match }: { match: Match }) {
       <div className="featured-match-summary">
         <div className="featured-match-summary-head">
           <div>
-            <p className="featured-match-summary-label">Đã xác nhận tham gia</p>
-            <strong className="featured-match-summary-value">{confirmed} / 7 suất</strong>
+            <p className="featured-match-summary-label">Tham gia</p>
+            <strong className="featured-match-summary-value">{confirmed} người</strong>
           </div>
-          <span className="featured-match-summary-count">{responseRate}% đã phản hồi</span>
+          <span className="featured-match-summary-count">{absent} vắng</span>
         </div>
 
         <div className="featured-match-bar" aria-hidden="true">
-          <span className="featured-match-bar-fill" style={{ width: `${responseRate}%` }} />
+          <span className="featured-match-bar-fill" style={{ width: `${participationRate}%` }} />
         </div>
 
         <div className="featured-match-legend">
@@ -108,14 +106,6 @@ export function FeaturedMatchHero({ match }: { match: Match }) {
           <span>
             <i className="legend-dot legend-absent" />
             {absent} vắng
-          </span>
-          <span>
-            <i className="legend-dot legend-maybe" />
-            {maybe} chưa chắc
-          </span>
-          <span>
-            <i className="legend-dot legend-waiting" />
-            {unanswered} chưa trả lời
           </span>
         </div>
       </div>

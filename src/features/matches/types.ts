@@ -7,6 +7,7 @@ export type Match = {
   id: string;
   teamId: string;
   opponentName: string;
+  opponentPhone: string;
   date: string;
   time: string;
   pitch: string;
