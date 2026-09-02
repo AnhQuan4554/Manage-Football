@@ -19,9 +19,9 @@ export const metadata: Metadata = {
   description: "PWA quản lý đội bóng sân 7 Pinkstorm FC.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/logo-transparent.png",
-    shortcut: "/logo-transparent.png",
-    apple: "/logo-transparent.png",
+    icon: "/icons/icon-192x192.png",
+    shortcut: "/icons/icon-192x192.png",
+    apple: "/icons/icon-192x192.png",
   },
 };
 
