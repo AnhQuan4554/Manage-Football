@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { Alert, Button, Collapse, Progress, Tag } from "antd";
+import { useRouter } from "next/navigation";
+import { useMemo, useRef, useState } from "react";
+import { Alert, App, Button, Collapse, Progress, Tag } from "antd";
+import { LogoLoading } from "@/components/common/LogoLoading";
 import type { MatchSplit, MatchSplitSummary } from "@/features/funds/types";
 import type { Match } from "@/features/matches/types";
 import type { TeamMember } from "@/features/members/types";
 import { uiColors } from "@/lib/constants/colors";
+import type { AppResponse } from "@/lib/response";
 import { formatDateShort, formatVnd } from "@/lib/utils/format";
 
 export function StatisticsOverview({
@@ -22,6 +25,10 @@ export function StatisticsOverview({
   matchSplits?: MatchSplit[];
   matches?: Match[];
 }) {
+  const router = useRouter();
+  const { message } = App.useApp();
+  const paymentSubmittingRef = useRef(false);
+  const [paymentSubmittingKey, setPaymentSubmittingKey] = useState<string | null>(null);
   const memberById = useMemo(
     () => new Map(members.map((member) => [member.id, member])),
     [members],
@@ -47,17 +54,73 @@ export function StatisticsOverview({
     [matchById, matchSplits, members, selectedDebtMonth],
   );
 
+  async function markDebtItemsPaid(items: MemberDebtMatch[], submittingKey: string) {
+    const payableItems = items.filter(isPayableDebtMatch);
+
+    if (!payableItems.length || paymentSubmittingRef.current) {
+      return;
+    }
+
+    const groups = new Map<string, { teamId: string; matchId: string; itemIds: string[] }>();
+
+    payableItems.forEach((item) => {
+      const groupKey = `${item.teamId}:${item.matchId}`;
+      const group = groups.get(groupKey) ?? {
+        teamId: item.teamId,
+        matchId: item.matchId,
+        itemIds: [],
+      };
+      group.itemIds.push(item.itemId);
+      groups.set(groupKey, group);
+    });
+
+    paymentSubmittingRef.current = true;
+    setPaymentSubmittingKey(submittingKey);
+    const paidAt = new Date().toISOString();
+    let updatedCount = 0;
+
+    try {
+      for (const { teamId, matchId, itemIds } of groups.values()) {
+        const response = await fetch(`/api/teams/${teamId}/matches/${matchId}/collection-items`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "mark_paid", itemIds, paidAt }),
+        });
+        const payload = (await response.json()) as AppResponse<MatchSplit["items"]>;
+
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.message ?? payload.error ?? "Không thể cập nhật tiền");
+        }
+
+        updatedCount += itemIds.length;
+      }
+
+      message.success(
+        payableItems.length === 1
+          ? "Đã xác nhận khoản tiền này"
+          : `Đã xác nhận đủ ${payableItems.length} khoản tiền`,
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Không thể cập nhật tiền";
+
+      if (updatedCount > 0) {
+        message.warning(
+          `Đã cập nhật ${updatedCount}/${payableItems.length} khoản. ${errorMessage}`,
+        );
+      } else {
+        message.error(errorMessage);
+      }
+    } finally {
+      router.refresh();
+      paymentSubmittingRef.current = false;
+      setPaymentSubmittingKey(null);
+    }
+  }
+
   return (
     <div className="page-stack statistics-page">
       <section className="surface-card member-debt-card">
         <div className="section-header member-debt-head">
-          <div>
-            <span className="text-kicker">Công nợ tháng</span>
-            <h2>Tiền sân từng thành viên</h2>
-            <p className="muted" style={{ margin: "5px 0 0" }}>
-              Lọc theo tháng đá trận, tính từ dữ liệu chia tiền thật.
-            </p>
-          </div>
           <label className="member-debt-month-picker">
             <span>Tháng</span>
             <select
@@ -81,51 +144,107 @@ export function StatisticsOverview({
 
         {monthlyDebtReport.rows.length ? (
           <div className="member-debt-list">
-            {monthlyDebtReport.rows.map((row) => (
-              <details key={row.memberId} className="member-debt-row" open={row.missingAmount > 0}>
-                <summary>
-                  <span className="member-debt-person">
-                    <span className="member-debt-avatar">{getInitials(row.name)}</span>
-                    <span>
-                      <strong>{row.name}</strong>
-                      <small>
-                        {row.matchCount} trận · đã đóng {formatVnd(row.paidAmount)}
-                      </small>
+            {monthlyDebtReport.rows.map((row) => {
+              const payableMatches = row.matches.filter(isPayableDebtMatch);
+              const rowSubmittingKey = `member:${row.memberId}`;
+              const isRowSubmitting = paymentSubmittingKey === rowSubmittingKey;
+
+              return (
+                <details
+                  key={row.memberId}
+                  className="member-debt-row"
+                  open={row.missingAmount > 0}
+                >
+                  <summary>
+                    <span className="member-debt-person">
+                      <span className="member-debt-avatar">{getInitials(row.name)}</span>
+                      <span className="member-debt-person-copy">
+                        <strong>{row.name}</strong>
+                        <small>
+                          {row.matchCount} trận · đã đóng {formatVnd(row.paidAmount)}
+                        </small>
+                      </span>
+                      {payableMatches.length ? (
+                        <Button
+                          type="primary"
+                          size="small"
+                          className="member-debt-pay-all"
+                          aria-label={`Đóng đủ các khoản đang thiếu của ${row.name}`}
+                          disabled={Boolean(paymentSubmittingKey)}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            void markDebtItemsPaid(payableMatches, rowSubmittingKey);
+                          }}
+                        >
+                          Đóng đủ
+                        </Button>
+                      ) : null}
                     </span>
-                  </span>
-                  <span className="member-debt-money">
-                    <span>
-                      Phải đóng <strong>{formatVnd(row.dueAmount)}</strong>
-                    </span>
-                    <span className={row.missingAmount > 0 ? "is-danger" : "is-success"}>
-                      Còn thiếu <strong>{formatVnd(row.missingAmount)}</strong>
-                    </span>
-                  </span>
-                </summary>
-                <div className="member-debt-detail-list">
-                  {row.matches.map((item) => (
-                    <Link
-                      key={item.matchId}
-                      href={"/funds/" + item.matchId}
-                      className="member-debt-detail"
-                    >
+                    <span className="member-debt-money">
                       <span>
-                        <strong>vs {item.opponentName}</strong>
-                        <small>{formatDateShort(item.date)}</small>
+                        Phải đóng <strong>{formatVnd(row.dueAmount)}</strong>
                       </span>
-                      <span>
-                        <small>Đã đóng</small>
-                        <strong>{formatVnd(item.amountPaid)}</strong>
+                      <span className={row.missingAmount > 0 ? "is-danger" : "is-success"}>
+                        Còn thiếu <strong>{formatVnd(row.missingAmount)}</strong>
                       </span>
-                      <span className={item.missingAmount > 0 ? "is-danger" : "is-success"}>
-                        <small>Còn thiếu</small>
-                        <strong>{formatVnd(item.missingAmount)}</strong>
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </details>
-            ))}
+                    </span>
+                  </summary>
+                  {isRowSubmitting ? (
+                    <div className="member-debt-row-loading">
+                      <LogoLoading
+                        label={`Đang cập nhật ${payableMatches.length} khoản tiền...`}
+                        size="sm"
+                      />
+                    </div>
+                  ) : null}
+                  <div className="member-debt-detail-list">
+                    {row.matches.map((item) => {
+                      const itemSubmittingKey = `item:${item.itemId}`;
+                      const isItemSubmitting = paymentSubmittingKey === itemSubmittingKey;
+
+                      return (
+                        <div key={item.itemId} className="member-debt-detail">
+                          <Link
+                            href={"/funds/" + item.matchId}
+                            className="member-debt-detail-match"
+                          >
+                            <strong>vs {item.opponentName}</strong>
+                            <small>{formatDateShort(item.date)}</small>
+                          </Link>
+                          <span>
+                            <small>Đã đóng</small>
+                            <strong>{formatVnd(item.amountPaid)}</strong>
+                          </span>
+                          <span className={item.missingAmount > 0 ? "is-danger" : "is-success"}>
+                            <small>Còn thiếu</small>
+                            <strong>{formatVnd(item.missingAmount)}</strong>
+                          </span>
+                          {isPayableDebtMatch(item) ? (
+                            isItemSubmitting ? (
+                              <div className="member-debt-action-loading">
+                                <LogoLoading label="" size="sm" />
+                              </div>
+                            ) : (
+                              <Button
+                                type="primary"
+                                size="small"
+                                className="member-debt-pay-one"
+                                aria-label={`Xác nhận ${row.name} đã đóng đủ trận gặp ${item.opponentName}`}
+                                disabled={Boolean(paymentSubmittingKey)}
+                                onClick={() => void markDebtItemsPaid([item], itemSubmittingKey)}
+                              >
+                                Đã đóng
+                              </Button>
+                            )
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
+              );
+            })}
           </div>
         ) : (
           <p className="member-debt-empty">Tháng này chưa có dữ liệu chia tiền sân.</p>
@@ -338,12 +457,15 @@ type DebtMonthOption = {
 };
 
 type MemberDebtMatch = {
+  itemId: string;
+  teamId: string;
   matchId: string;
   opponentName: string;
   date: string;
   amountDue: number;
   amountPaid: number;
   missingAmount: number;
+  status: MatchSplit["items"][number]["status"];
 };
 
 type MemberDebtRow = {
@@ -424,12 +546,15 @@ function buildMonthlyDebtReport(
       row.paidAmount += amountPaid;
       row.missingAmount += missingAmount;
       row.matches.push({
+        itemId: item.id,
+        teamId: match.teamId,
         matchId: split.matchId,
         opponentName: match.opponentName,
         date: match.date,
         amountDue,
         amountPaid,
         missingAmount,
+        status: item.status,
       });
       rowsByMember.set(row.memberId, row);
     });
@@ -450,6 +575,10 @@ function buildMonthlyDebtReport(
     totalPaid: rows.reduce((sum, row) => sum + row.paidAmount, 0),
     totalMissing: rows.reduce((sum, row) => sum + row.missingAmount, 0),
   };
+}
+
+function isPayableDebtMatch(item: MemberDebtMatch) {
+  return item.missingAmount > 0 && (item.status === "unpaid" || item.status === "partial");
 }
 
 function displayMemberName(member: TeamMember) {

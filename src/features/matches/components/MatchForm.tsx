@@ -205,7 +205,7 @@ export function MatchForm({
   async function handleDelete() {
     if (!matchId) return;
     const confirmed = window.confirm(
-      "Xóa trận này? Hệ thống sẽ chuyển trạng thái sang đã hủy để giữ lịch sử.",
+      "Xóa vĩnh viễn trận này cùng danh sách tham gia, đội hình và chia tiền? Không thể hoàn tác.",
     );
     if (!confirmed) return;
 

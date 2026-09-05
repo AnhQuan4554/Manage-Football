@@ -2,7 +2,12 @@ import Link from "next/link";
 import { Button, Tag } from "antd";
 import { ClockCircleOutlined, EnvironmentOutlined, FireOutlined } from "@ant-design/icons";
 import type { Match } from "@/features/matches/types";
-import { formatDateShort, weekdayShort } from "@/lib/utils/format";
+import {
+  APP_TIME_ZONE,
+  formatDateShort,
+  getVietnamDateKey,
+  weekdayShort,
+} from "@/lib/utils/format";
 
 const statusMap: Record<Match["status"], { label: string; color: string }> = {
   scheduled: { label: "Sắp diễn ra", color: "magenta" },
@@ -16,8 +21,12 @@ function parseMatchDate(date: string) {
 
 function formatLongDate(date: string) {
   const value = parseMatchDate(date);
-  const weekday = new Intl.DateTimeFormat("vi-VN", { weekday: "long" }).format(value);
+  const weekday = new Intl.DateTimeFormat("vi-VN", {
+    timeZone: APP_TIME_ZONE,
+    weekday: "long",
+  }).format(value);
   const datePart = new Intl.DateTimeFormat("vi-VN", {
+    timeZone: APP_TIME_ZONE,
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -28,10 +37,7 @@ function formatLongDate(date: string) {
 
 function formatRelativeDate(date: string) {
   const target = parseMatchDate(date);
-  const today = new Date();
-  const current = new Date(
-    `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}T00:00:00+07:00`,
-  );
+  const current = parseMatchDate(getVietnamDateKey());
   const diffDays = Math.round((target.getTime() - current.getTime()) / 86400000);
 
   if (diffDays === 0) return "Hôm nay";
