@@ -14,9 +14,9 @@ export default async function NewMatchPage() {
       <PageHeader
         variant="form"
         title="Tạo trận mới"
-        subtitle="Sau khi tạo xong, màn hình sẽ gợi ý tạo bình chọn Zalo."
+        subtitle="Sau khi tạo xong, sao chép thông tin ngắn gọn và mở nhóm Zalo."
       />
-      <MatchForm teamId={team.id} mode="create" submitLabel="Tạo trận và tạo bình chọn Zalo" />
+      <MatchForm teamId={team.id} mode="create" submitLabel="Tạo trận và lấy nội dung Zalo" />
     </div>
   );
 }

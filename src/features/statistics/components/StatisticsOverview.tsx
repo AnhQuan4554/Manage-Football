@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
-import { Alert, App, Button, Collapse, Progress, Tag } from "antd";
+import { Alert, App, Button, Collapse, Modal, Progress, Tag } from "antd";
 import { LogoLoading } from "@/components/common/LogoLoading";
 import type { MatchSplit, MatchSplitSummary } from "@/features/funds/types";
 import type { Match } from "@/features/matches/types";
@@ -29,6 +29,11 @@ export function StatisticsOverview({
   const { message } = App.useApp();
   const paymentSubmittingRef = useRef(false);
   const [paymentSubmittingKey, setPaymentSubmittingKey] = useState<string | null>(null);
+  const [paymentConfirmation, setPaymentConfirmation] = useState<{
+    memberName: string;
+    items: MemberDebtMatch[];
+    submittingKey: string;
+  } | null>(null);
   const memberById = useMemo(
     () => new Map(members.map((member) => [member.id, member])),
     [members],
@@ -117,6 +122,15 @@ export function StatisticsOverview({
     }
   }
 
+  async function confirmMemberDebtPaid() {
+    if (!paymentConfirmation) {
+      return;
+    }
+
+    await markDebtItemsPaid(paymentConfirmation.items, paymentConfirmation.submittingKey);
+    setPaymentConfirmation(null);
+  }
+
   return (
     <div className="page-stack statistics-page">
       <section className="surface-card member-debt-card">
@@ -150,11 +164,7 @@ export function StatisticsOverview({
               const isRowSubmitting = paymentSubmittingKey === rowSubmittingKey;
 
               return (
-                <details
-                  key={row.memberId}
-                  className="member-debt-row"
-                  open={row.missingAmount > 0}
-                >
+                <details key={row.memberId} className="member-debt-row">
                   <summary>
                     <span className="member-debt-person">
                       <span className="member-debt-avatar">{getInitials(row.name)}</span>
@@ -164,31 +174,37 @@ export function StatisticsOverview({
                           {row.matchCount} trận · đã đóng {formatVnd(row.paidAmount)}
                         </small>
                       </span>
-                      {payableMatches.length ? (
-                        <Button
-                          type="primary"
-                          size="small"
-                          className="member-debt-pay-all"
-                          aria-label={`Đóng đủ các khoản đang thiếu của ${row.name}`}
-                          disabled={Boolean(paymentSubmittingKey)}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            void markDebtItemsPaid(payableMatches, rowSubmittingKey);
-                          }}
-                        >
-                          Đóng đủ
-                        </Button>
-                      ) : null}
                     </span>
                     <span className="member-debt-money">
                       <span>
-                        Phải đóng <strong>{formatVnd(row.dueAmount)}</strong>
+                        <small>Phải đóng</small>
+                        <strong>{formatVnd(row.dueAmount)}</strong>
                       </span>
                       <span className={row.missingAmount > 0 ? "is-danger" : "is-success"}>
-                        Còn thiếu <strong>{formatVnd(row.missingAmount)}</strong>
+                        <small>Còn thiếu</small>
+                        <strong>{formatVnd(row.missingAmount)}</strong>
                       </span>
                     </span>
+                    {payableMatches.length ? (
+                      <Button
+                        type="primary"
+                        size="small"
+                        className="member-debt-pay-all"
+                        aria-label={`Đóng đủ các khoản đang thiếu của ${row.name}`}
+                        disabled={Boolean(paymentSubmittingKey)}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setPaymentConfirmation({
+                            memberName: row.name,
+                            items: payableMatches,
+                            submittingKey: rowSubmittingKey,
+                          });
+                        }}
+                      >
+                        Đóng đủ
+                      </Button>
+                    ) : null}
                   </summary>
                   {isRowSubmitting ? (
                     <div className="member-debt-row-loading">
@@ -250,6 +266,59 @@ export function StatisticsOverview({
           <p className="member-debt-empty">Tháng này chưa có dữ liệu chia tiền sân.</p>
         )}
       </section>
+
+      <Modal
+        centered
+        title="Xác nhận đóng đủ"
+        open={Boolean(paymentConfirmation)}
+        onCancel={() => setPaymentConfirmation(null)}
+        footer={null}
+        closable={!paymentSubmittingKey}
+        maskClosable={!paymentSubmittingKey}
+        destroyOnHidden
+      >
+        {paymentConfirmation ? (
+          <div className="member-debt-confirm">
+            <p>
+              Bạn có chắc chắn <strong>{paymentConfirmation.memberName}</strong> đã đóng đủ các trận
+              sau?
+            </p>
+            <ul className="member-debt-confirm-list">
+              {paymentConfirmation.items.map((item) => (
+                <li key={item.itemId}>
+                  <span>
+                    <strong>vs {item.opponentName}</strong>
+                    <small>{formatDateShort(item.date)}</small>
+                  </span>
+                  <strong>{formatVnd(item.missingAmount)}</strong>
+                </li>
+              ))}
+            </ul>
+            {paymentSubmittingKey === paymentConfirmation.submittingKey ? (
+              <LogoLoading
+                label={`Đang cập nhật ${paymentConfirmation.items.length} trận...`}
+                size="sm"
+              />
+            ) : null}
+            <div className="member-debt-confirm-actions">
+              <Button
+                disabled={Boolean(paymentSubmittingKey)}
+                onClick={() => setPaymentConfirmation(null)}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="primary"
+                className="member-debt-confirm-button"
+                disabled={Boolean(paymentSubmittingKey)}
+                onClick={() => void confirmMemberDebtPaid()}
+              >
+                Xác nhận
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
 
       {split && match && latestSummary ? (
         <section className="surface-card statistics-latest-card">

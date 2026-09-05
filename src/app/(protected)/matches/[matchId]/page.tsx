@@ -16,9 +16,11 @@ import {
 } from "@ant-design/icons";
 import { PageHeader } from "@/components/common/PageHeader";
 import { MarkMatchCompletedButton } from "@/features/matches/components/MarkMatchCompletedButton";
+import { MatchNoteTooltip } from "@/features/matches/components/MatchNoteTooltip";
 import { MatchPaymentTabs } from "@/features/matches/components/MatchPaymentTabs";
 import { MatchParticipantsEditor } from "@/features/matches/components/MatchParticipantsEditor";
 import { OpponentContactMenu } from "@/features/matches/components/OpponentContactMenu";
+import { ZaloVoteCopyButton } from "@/features/matches/components/ZaloVoteCard";
 import { listTeamMembers } from "@/features/members/services/memberApiService";
 import { getMatchDetail } from "@/features/matches/services/matchService";
 import { formatDateTime, formatVnd } from "@/lib/utils/format";
@@ -100,6 +102,7 @@ export default async function MatchDetailPage({
   const perHeadLabel = collection?.items.length
     ? formatVnd(collection.items[0]?.amountDue ?? 0)
     : "Chưa chia";
+  const noteText = detail.match.note || "Không có ghi chú";
 
   return (
     <div className="page-stack match-detail-page">
@@ -112,11 +115,21 @@ export default async function MatchDetailPage({
           <span className="match-detail-relative">
             {getRelativeDayLabel(detail.match.matchDateTime)}
           </span>
-          <Tag
-            className={`match-detail-status-pill match-card-status--${detail.match.status === "completed" ? "completed" : detail.match.status === "cancelled" ? "cancelled" : "scheduled"}`}
-          >
-            {getStatusLabel(detail.match.status)}
-          </Tag>
+          <div className="match-detail-hero-actions">
+            <ZaloVoteCopyButton
+              info={{
+                opponentName: detail.match.opponentName,
+                date: scheduledAt.date,
+                time: scheduledAt.time,
+                venueName: detail.match.venueName,
+              }}
+            />
+            <Tag
+              className={`match-detail-status-pill match-card-status--${detail.match.status === "completed" ? "completed" : detail.match.status === "cancelled" ? "cancelled" : "scheduled"}`}
+            >
+              {getStatusLabel(detail.match.status)}
+            </Tag>
+          </div>
         </div>
 
         <div className="match-detail-matchup">
@@ -200,7 +213,7 @@ export default async function MatchDetailPage({
           </span>
           <div>
             <span className="text-kicker">Ghi chú</span>
-            <strong>{detail.match.note || "Không có ghi chú"}</strong>
+            <MatchNoteTooltip text={noteText} />
           </div>
         </div>
       </section>
@@ -257,9 +270,7 @@ export default async function MatchDetailPage({
           </p>
         )}
 
-        {collection?.items.length ? (
-          <MatchPaymentTabs items={collection.items} />
-        ) : null}
+        {collection?.items.length ? <MatchPaymentTabs items={collection.items} /> : null}
       </section>
 
       <details className="surface match-detail-participants">

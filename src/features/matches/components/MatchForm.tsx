@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button, Checkbox, Space, Tag } from "antd";
 import { LogoLoading } from "@/components/common/LogoLoading";
 import { MoneyInput } from "@/components/common/MoneyInput";
+import { ZaloVoteDialog, type ZaloVoteMatchInfo } from "@/features/matches/components/ZaloVoteCard";
 import { normalizeMoneyInput, parseMoneyInput } from "@/lib/utils/format";
 import type { TeamMember } from "@/features/members/types";
 
@@ -40,6 +41,11 @@ type Props = {
   initialParticipantMemberIds?: string[];
 };
 
+type CreatedMatch = {
+  id: string;
+  voteInfo: ZaloVoteMatchInfo;
+};
+
 const defaultMatchTime = "19:15";
 
 function formatDateInputValue(date: Date) {
@@ -50,11 +56,11 @@ function formatDateInputValue(date: Date) {
   return year + "-" + month + "-" + day;
 }
 
-function getNextWeekTuesday() {
+function getUpcomingTuesday() {
   const today = new Date();
   const value = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const daysUntilNextWeekTuesday = ((2 - value.getDay() + 7) % 7) + 7;
-  value.setDate(value.getDate() + daysUntilNextWeekTuesday);
+  const daysUntilTuesday = (2 - value.getDay() + 7) % 7;
+  value.setDate(value.getDate() + daysUntilTuesday);
 
   return formatDateInputValue(value);
 }
@@ -94,6 +100,7 @@ export function MatchForm({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [createdMatch, setCreatedMatch] = useState<CreatedMatch | null>(null);
   const [participantMemberIds, setParticipantMemberIds] = useState<string[]>(
     initialParticipantMemberIds.filter(Boolean),
   );
@@ -102,7 +109,7 @@ export function MatchForm({
     opponentPhone: initialValues?.opponentPhone ?? "",
     homeScore: initialValues?.homeScore ?? "0",
     awayScore: initialValues?.awayScore ?? "0",
-    date: initialValues?.date ?? (mode === "create" ? getNextWeekTuesday() : ""),
+    date: initialValues?.date ?? (mode === "create" ? getUpcomingTuesday() : ""),
     time: initialValues?.time ?? (mode === "create" ? defaultMatchTime : ""),
     venueName: initialValues?.venueName ?? "",
     address: initialValues?.address ?? "",
@@ -143,6 +150,17 @@ export function MatchForm({
         ? Array.from(new Set([...current, memberId]))
         : current.filter((id) => id !== memberId),
     );
+  }
+
+  function openCreatedMatch() {
+    if (!createdMatch) {
+      return;
+    }
+
+    const createdMatchId = createdMatch.id;
+    setCreatedMatch(null);
+    router.push("/matches/" + createdMatchId);
+    router.refresh();
   }
 
   async function submitMatch(method: "POST" | "PATCH") {
@@ -192,6 +210,19 @@ export function MatchForm({
       }
 
       const match = responsePayload.data;
+
+      if (method === "POST") {
+        setCreatedMatch({
+          id: match.id,
+          voteInfo: {
+            opponentName: values.opponentName,
+            date: values.date,
+            time: values.time,
+            venueName: values.venueName,
+          },
+        });
+        return;
+      }
 
       router.push("/matches/" + match.id);
       router.refresh();
@@ -247,9 +278,7 @@ export function MatchForm({
           type="tel"
           inputMode="tel"
           value={values.opponentPhone}
-          onChange={(e) =>
-            setValues((current) => ({ ...current, opponentPhone: e.target.value }))
-          }
+          onChange={(e) => setValues((current) => ({ ...current, opponentPhone: e.target.value }))}
           placeholder="09xx xxx xxx"
         />
         <div className="match-form-grid match-score-grid">
@@ -419,6 +448,16 @@ export function MatchForm({
           </Button>
         ) : null}
       </Space>
+
+      {createdMatch ? (
+        <ZaloVoteDialog
+          info={createdMatch.voteInfo}
+          open
+          continueLabel="Để sau, xem chi tiết"
+          onClose={openCreatedMatch}
+          onContinue={openCreatedMatch}
+        />
+      ) : null}
     </section>
   );
 }

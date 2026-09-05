@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Tabs, Tag } from "antd";
 import type { MatchDetailResponse } from "@/features/matches/services/matchApiService";
 import { formatVnd } from "@/lib/utils/format";
@@ -42,20 +43,20 @@ function TabLabel({ label, count }: { label: string; count: number }) {
 }
 
 export function MatchPaymentTabs({ items }: { items: CollectionItem[] }) {
+  const [activeKey, setActiveKey] = useState<"unpaid" | "paid">("unpaid");
   const unpaidItems = items.filter((item) => !isPaid(item));
   const paidItems = items.filter(isPaid);
 
   return (
     <Tabs
-      className="match-detail-payment-tabs"
-      defaultActiveKey="unpaid"
+      className={`match-detail-payment-tabs match-detail-payment-tabs--${activeKey}`}
+      activeKey={activeKey}
+      onChange={(key) => setActiveKey(key === "paid" ? "paid" : "unpaid")}
       items={[
         {
           key: "unpaid",
           label: <TabLabel label="Chưa đóng" count={unpaidItems.length} />,
-          children: (
-            <PaymentList items={unpaidItems} emptyText="Tất cả thành viên đã đóng đủ." />
-          ),
+          children: <PaymentList items={unpaidItems} emptyText="Tất cả thành viên đã đóng đủ." />,
         },
         {
           key: "paid",
