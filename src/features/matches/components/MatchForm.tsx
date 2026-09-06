@@ -44,6 +44,7 @@ type Props = {
 type CreatedMatch = {
   id: string;
   voteInfo: ZaloVoteMatchInfo;
+  notice?: string;
 };
 
 const defaultMatchTime = "19:15";
@@ -214,6 +215,7 @@ export function MatchForm({
       if (method === "POST") {
         setCreatedMatch({
           id: match.id,
+          notice: responsePayload.message,
           voteInfo: {
             opponentName: values.opponentName,
             date: values.date,
@@ -452,6 +454,7 @@ export function MatchForm({
       {createdMatch ? (
         <ZaloVoteDialog
           info={createdMatch.voteInfo}
+          notice={createdMatch.notice}
           open
           continueLabel="Để sau, xem chi tiết"
           onClose={openCreatedMatch}

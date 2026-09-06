@@ -19,6 +19,7 @@ type ZaloVoteDialogProps = {
   onClose: () => void;
   continueLabel?: string;
   onContinue?: () => void;
+  notice?: string;
 };
 
 function formatVoteDate(dateValue: string) {
@@ -75,6 +76,7 @@ export function ZaloVoteDialog({
   onClose,
   continueLabel = "Đóng",
   onContinue,
+  notice,
 }: ZaloVoteDialogProps) {
   const { message } = App.useApp();
   const [copied, setCopied] = useState(false);
@@ -107,6 +109,7 @@ export function ZaloVoteDialog({
       destroyOnHidden
     >
       <div className="zalo-vote-dialog">
+        {notice && <p role="status">{notice}</p>}
         <pre className="zalo-vote-message">{voteMessage}</pre>
         <div className="zalo-vote-dialog-actions">
           <Button onClick={onContinue ?? onClose}>{continueLabel}</Button>

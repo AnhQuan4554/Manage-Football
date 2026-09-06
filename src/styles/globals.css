@@ -528,6 +528,7 @@ strong {
 }
 
 .member-debt-month-picker {
+  position: relative;
   display: grid;
   min-width: 170px;
   gap: 7px;
@@ -537,6 +538,10 @@ strong {
 }
 
 .member-debt-month-picker select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  min-width: 0;
   min-height: 42px;
   padding: 0 38px 0 12px;
   border: 1px solid var(--line);
@@ -547,6 +552,24 @@ strong {
   font-size: 14px;
   font-weight: 500;
   box-shadow: 0 8px 18px -18px rgba(21, 25, 39, 0.38);
+}
+
+.member-debt-month-picker::after {
+  position: absolute;
+  right: 16px;
+  bottom: 18px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  content: "";
+  pointer-events: none;
+  transform: rotate(45deg);
+}
+
+.member-debt-month-picker select:focus-visible {
+  outline: 2px solid var(--pink);
+  outline-offset: 2px;
 }
 
 .member-debt-stats {
@@ -3710,4 +3733,66 @@ strong {
   outline: 2px solid var(--pink);
   outline-offset: 4px;
   border-radius: 4px;
+}
+.push-page {
+  width: min(100% - 32px, 680px);
+  margin: 32px auto;
+  display: grid;
+  gap: 20px;
+}
+
+.push-settings {
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  color: var(--navy);
+}
+
+.push-settings h2 {
+  font-size: 18px;
+  margin: 0;
+}
+.push-settings p {
+  margin: 0;
+  line-height: 1.6;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.push-settings-label {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+}
+.push-settings-label span,
+.push-settings .push-settings-footnote {
+  font-size: 12px;
+  color: var(--muted);
+}
+.push-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.push-settings-actions button {
+  min-height: 44px;
+}
+.push-settings-hint {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.push-settings .push-settings-error {
+  color: var(--danger);
+}
+
+@media (max-width: 480px) {
+  .push-settings {
+    padding: 16px;
+  }
+  .push-settings-actions > button {
+    flex: 1 1 auto;
+  }
 }
