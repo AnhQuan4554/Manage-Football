@@ -13,7 +13,8 @@ import { getMatches } from "@/features/matches/services/matchService";
 import { getActiveMembers } from "@/features/members/services/memberService";
 import { getFundOverview } from "@/features/funds/services/fundService";
 import { uiColors } from "@/lib/constants/colors";
-import { formatVnd } from "@/lib/utils/format";
+import { formatVnd, getVietnamDateKey } from "@/lib/utils/format";
+import { selectNextMatch } from "@/features/matches/utils/schedule";
 
 export default async function DashboardPage() {
   const [matchesResponse, membersResponse, fundsResponse] = await Promise.all([
@@ -22,15 +23,15 @@ export default async function DashboardPage() {
     getFundOverview(),
   ]);
   const matches = matchesResponse.data ?? [];
-  const nextMatch = matches
-    .filter((match) => match.status === "scheduled")
-    .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))[0];
+  const nextMatch = selectNextMatch(matches);
   const featuredMatch = nextMatch;
   const members = membersResponse.data ?? [];
   const funds = fundsResponse.data!;
-  const currentMonthKey = getCurrentMonthKey();
-  const currentMonthMatches = matches.filter((match) => match.date.startsWith(currentMonthKey));
-  const recentMatches = matches.filter((match) => match.status !== "scheduled").slice(0, 3);
+  const currentMonthKey = getVietnamDateKey().slice(0, 7);
+  const currentMonthMatches = matches.filter(
+    (match) => match.status !== "cancelled" && match.date.startsWith(currentMonthKey),
+  );
+  const recentMatches = matches.filter((match) => match.status === "completed").slice(0, 3);
 
   return (
     <div className="page-stack">
@@ -97,11 +98,6 @@ export default async function DashboardPage() {
       </section>
     </div>
   );
-}
-
-function getCurrentMonthKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function MiniStat({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {

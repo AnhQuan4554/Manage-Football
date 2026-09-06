@@ -544,6 +544,7 @@ export async function listTeamMatches(
     .from("matches")
     .select(matchSelect)
     .eq("team_id", teamId)
+    .neq("status", "cancelled")
     .order("match_date_time", { ascending: false });
 
   if (error) {
@@ -799,17 +800,20 @@ export async function updateTeamMatch(
 
 export async function deleteTeamMatch(teamId: string, matchId: string): Promise<AppResponse<true>> {
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("matches")
-    .update({
-      status: "cancelled",
-      cancelled_reason: "Đã xoá từ giao diện",
-    })
+    .delete()
     .eq("team_id", teamId)
-    .eq("id", matchId);
+    .eq("id", matchId)
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     return fail(error.message, "Không thể xoá trận");
+  }
+
+  if (!data) {
+    return fail("MATCH_NOT_FOUND", "Trận không tồn tại hoặc bạn không có quyền xoá");
   }
 
   return ok(true, "Đã xoá trận");

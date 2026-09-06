@@ -32,7 +32,7 @@ export function MatchesBoard({
   const history = useMemo(
     () =>
       matches
-        .filter((match) => match.status !== "scheduled")
+        .filter((match) => match.status === "completed")
         .sort((a, b) => `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`)),
     [matches],
   );
@@ -45,7 +45,10 @@ export function MatchesBoard({
   }, [view]);
 
   const currentMonthMatches = useMemo(
-    () => matches.filter((match) => match.date.startsWith(currentMonthKey)),
+    () =>
+      matches.filter(
+        (match) => match.status !== "cancelled" && match.date.startsWith(currentMonthKey),
+      ),
     [currentMonthKey, matches],
   );
   const monthTotal = useMemo(

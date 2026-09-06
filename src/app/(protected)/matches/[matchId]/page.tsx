@@ -4,16 +4,23 @@ import { Button, Tag } from "antd";
 import {
   ArrowLeftOutlined,
   CalendarOutlined,
+  CheckCircleOutlined,
+  DownOutlined,
   EditOutlined,
   EnvironmentOutlined,
   FileTextOutlined,
+  HourglassOutlined,
   TeamOutlined,
+  UserOutlined,
   WalletOutlined,
 } from "@ant-design/icons";
 import { PageHeader } from "@/components/common/PageHeader";
 import { MarkMatchCompletedButton } from "@/features/matches/components/MarkMatchCompletedButton";
+import { MatchNoteTooltip } from "@/features/matches/components/MatchNoteTooltip";
+import { MatchPaymentTabs } from "@/features/matches/components/MatchPaymentTabs";
 import { MatchParticipantsEditor } from "@/features/matches/components/MatchParticipantsEditor";
 import { OpponentContactMenu } from "@/features/matches/components/OpponentContactMenu";
+import { ZaloVoteCopyButton } from "@/features/matches/components/ZaloVoteCard";
 import { listTeamMembers } from "@/features/members/services/memberApiService";
 import { getMatchDetail } from "@/features/matches/services/matchService";
 import { formatDateTime, formatVnd } from "@/lib/utils/format";
@@ -95,6 +102,7 @@ export default async function MatchDetailPage({
   const perHeadLabel = collection?.items.length
     ? formatVnd(collection.items[0]?.amountDue ?? 0)
     : "Chưa chia";
+  const noteText = detail.match.note || "Không có ghi chú";
 
   return (
     <div className="page-stack match-detail-page">
@@ -107,41 +115,50 @@ export default async function MatchDetailPage({
           <span className="match-detail-relative">
             {getRelativeDayLabel(detail.match.matchDateTime)}
           </span>
-          <Tag
-            className={`match-detail-status-pill match-card-status--${detail.match.status === "completed" ? "completed" : detail.match.status === "cancelled" ? "cancelled" : "scheduled"}`}
-          >
-            {getStatusLabel(detail.match.status)}
-          </Tag>
+          <div className="match-detail-hero-actions">
+            <ZaloVoteCopyButton
+              info={{
+                opponentName: detail.match.opponentName,
+                date: scheduledAt.date,
+                time: scheduledAt.time,
+                venueName: detail.match.venueName,
+              }}
+            />
+            <Tag
+              className={`match-detail-status-pill match-card-status--${detail.match.status === "completed" ? "completed" : detail.match.status === "cancelled" ? "cancelled" : "scheduled"}`}
+            >
+              {getStatusLabel(detail.match.status)}
+            </Tag>
+          </div>
         </div>
 
-        <div className="match-detail-teams">
-          <div className="match-detail-team">
-            <span className="match-detail-logo-badge">
-              <Image
-                src="/logo-transparent.png"
-                alt="Pinkstorm FC"
-                width={58}
-                height={58}
-                priority
-              />
-            </span>
-            <strong>Pinkstorm FC</strong>
-          </div>
-          <div className="match-detail-time">
-            <strong>{scheduledAt.time}</strong>
-            <span>Giờ đá</span>
-            <div className="match-detail-score">
-              <strong>
-                {detail.match.homeScore ?? 0} : {detail.match.awayScore ?? 0}
-              </strong>
-              <span>Tỉ số</span>
+        <div className="match-detail-matchup">
+          <div className="match-detail-teams">
+            <div className="match-detail-team">
+              <span className="match-detail-logo-badge">
+                <Image
+                  src="/logo-transparent.png"
+                  alt="Pinkstorm FC"
+                  width={58}
+                  height={58}
+                  priority
+                />
+              </span>
+              <strong>Pinkstorm FC</strong>
+            </div>
+            <span className="match-detail-versus">VS</span>
+            <div className="match-detail-team">
+              <span className="match-detail-team-badge match-detail-team-badge-muted">
+                {getInitials(detail.match.opponentName)}
+              </span>
+              <strong>{detail.match.opponentName}</strong>
             </div>
           </div>
-          <div className="match-detail-team">
-            <span className="match-detail-team-badge match-detail-team-badge-muted">
-              {getInitials(detail.match.opponentName)}
-            </span>
-            <strong>{detail.match.opponentName}</strong>
+          <div className="match-detail-score">
+            <strong>
+              {detail.match.homeScore ?? 0} : {detail.match.awayScore ?? 0}
+            </strong>
+            <span>Tỉ số</span>
           </div>
         </div>
       </section>
@@ -196,7 +213,7 @@ export default async function MatchDetailPage({
           </span>
           <div>
             <span className="text-kicker">Ghi chú</span>
-            <strong>{detail.match.note || "Không có ghi chú"}</strong>
+            <MatchNoteTooltip text={noteText} />
           </div>
         </div>
       </section>
@@ -216,20 +233,35 @@ export default async function MatchDetailPage({
         </div>
 
         {collection?.items.length ? (
-          <div className="match-detail-money-grid">
-            <div>
-              <span>Đã thu</span>
-              <strong>
-                {paidCount}/{collection.items.length}
-              </strong>
+          <div className="match-detail-money-summary">
+            <div className="match-detail-money-summary-item is-paid">
+              <span className="match-detail-money-summary-icon">
+                <CheckCircleOutlined />
+              </span>
+              <span className="match-detail-money-summary-copy">
+                <small>Đã thu</small>
+                <strong>
+                  {paidCount}/{collection.items.length}
+                </strong>
+              </span>
             </div>
-            <div>
-              <span>Còn thiếu</span>
-              <strong>{formatVnd(unpaidAmount)}</strong>
+            <div className="match-detail-money-summary-item is-missing">
+              <span className="match-detail-money-summary-icon">
+                <HourglassOutlined />
+              </span>
+              <span className="match-detail-money-summary-copy">
+                <small>Còn thiếu</small>
+                <strong>{formatVnd(unpaidAmount)}</strong>
+              </span>
             </div>
-            <div>
-              <span>Mỗi người</span>
-              <strong>{perHeadLabel}</strong>
+            <div className="match-detail-money-summary-item is-per-head">
+              <span className="match-detail-money-summary-icon">
+                <UserOutlined />
+              </span>
+              <span className="match-detail-money-summary-copy">
+                <small>Mỗi người</small>
+                <strong>{perHeadLabel}</strong>
+              </span>
             </div>
           </div>
         ) : (
@@ -238,69 +270,56 @@ export default async function MatchDetailPage({
           </p>
         )}
 
-        {collection?.items.length ? (
-          <div className="match-detail-payment-list">
-            {collection.items.map((item) => (
-              <div key={item.id} className="match-detail-payment-item">
-                <span>{item.participantName}</span>
-                <strong>{formatVnd(item.amountDue)}</strong>
-                <Tag
-                  color={
-                    item.status === "paid" || item.status === "overpaid" ? "success" : "magenta"
-                  }
-                >
-                  {item.status === "paid" || item.status === "overpaid" ? "Đã đóng" : "Chưa đóng"}
-                </Tag>
-              </div>
-            ))}
-          </div>
-        ) : null}
+        {collection?.items.length ? <MatchPaymentTabs items={collection.items} /> : null}
       </section>
 
-      <section className="surface match-detail-participants">
-        <div className="match-detail-section-head">
+      <details className="surface match-detail-participants">
+        <summary className="match-detail-participants-summary">
           <div>
             <span className="text-kicker">Danh sách tham gia</span>
             <h2>{goingParticipants.length} người đã xác nhận</h2>
           </div>
-          <MatchParticipantsEditor
-            teamId={detail.match.teamId}
-            matchId={detail.match.id}
-            isCompleted={isCompleted}
-            members={members}
-            participants={participants}
-          />
-        </div>
-        <div className="match-detail-participant-grid">
-          {goingParticipants.length ? (
-            goingParticipants.map((participant) => (
-              <div key={participant.id} className="match-detail-participant-item">
-                <span className="match-detail-avatar">
-                  {getInitials(participant.participantName)}
-                </span>
-                <div>
-                  <strong>{participant.participantName}</strong>
-                  <p className="muted">Tham gia</p>
+          <DownOutlined className="match-detail-participants-chevron" />
+        </summary>
+        <div className="match-detail-participants-content">
+          <div className="match-detail-participants-toolbar">
+            <MatchParticipantsEditor
+              teamId={detail.match.teamId}
+              matchId={detail.match.id}
+              isCompleted={isCompleted}
+              members={members}
+              participants={participants}
+            />
+          </div>
+          <div className="match-detail-participant-grid">
+            {goingParticipants.length ? (
+              goingParticipants.map((participant) => (
+                <div key={participant.id} className="match-detail-participant-item">
+                  <span className="match-detail-avatar">
+                    {getInitials(participant.participantName)}
+                  </span>
+                  <div>
+                    <strong>{participant.participantName}</strong>
+                    <p className="muted">Tham gia</p>
+                  </div>
                 </div>
-              </div>
-            ))
-          ) : (
-            <p className="muted match-detail-empty-note">Chưa có thành viên tham gia.</p>
-          )}
+              ))
+            ) : (
+              <p className="muted match-detail-empty-note">Chưa có thành viên tham gia.</p>
+            )}
+          </div>
         </div>
-      </section>
+      </details>
 
       <div className="match-detail-actions">
         <Link href={`/matches/${detail.match.id}/edit`}>
           <Button type="primary" icon={<EditOutlined />}>
-            {detail.match.status === "completed"
-              ? "Cập nhật chi phí & người tham gia"
-              : "Chỉnh sửa trận"}
+            Cập nhật trận
           </Button>
         </Link>
         {detail.match.status === "completed" && collection ? (
           <Link href={`/funds/${detail.match.id}`}>
-            <Button icon={<WalletOutlined />}>Theo dõi thu tiền</Button>
+            <Button icon={<WalletOutlined />}>Thu tiền</Button>
           </Link>
         ) : null}
         {detail.match.status !== "completed" && detail.match.status !== "cancelled" ? (

@@ -6,6 +6,7 @@ import {
   type MatchDetailResponse,
 } from "@/features/matches/services/matchApiService";
 import type { Match, AttendanceStatus } from "@/features/matches/types";
+import { selectNextMatch } from "@/features/matches/utils/schedule";
 
 function mapDbStatus(
   status: "draft" | "open" | "lineup_ready" | "completed" | "cancelled",
@@ -129,9 +130,7 @@ export async function getNextMatch() {
     return fail(matchesResponse.error ?? "Không thể tải trận tiếp theo");
   }
 
-  const next = matchesResponse.data
-    .filter((match) => match.status === "scheduled")
-    .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))[0];
+  const next = selectNextMatch(matchesResponse.data);
 
   return ok(next);
 }

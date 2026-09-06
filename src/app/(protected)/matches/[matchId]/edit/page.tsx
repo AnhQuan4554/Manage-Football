@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ArrowLeftOutlined } from "@ant-design/icons";
 import { PageHeader } from "@/components/common/PageHeader";
 import { MatchForm } from "@/features/matches/components/MatchForm";
 import { getActiveMembers } from "@/features/members/services/memberService";
@@ -30,7 +32,11 @@ export default async function EditMatchPage({ params }: { params: Promise<{ matc
 
   return (
     <div className="page-stack">
+      <Link href={`/matches/${match.id}`} className="match-detail-back">
+        <ArrowLeftOutlined /> Quay lại trận
+      </Link>
       <PageHeader
+        variant="form"
         title={match.status === "completed" ? "Cập nhật chi phí trận đã qua" : "Chỉnh sửa trận"}
         subtitle={"vs " + match.opponentName}
       />

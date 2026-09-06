@@ -1,0 +1,7 @@
+.env*
+!.env.example
+*.local.*
+*.tsbuildinfo
+.agents/
+.codex/
+supabase/.temp/

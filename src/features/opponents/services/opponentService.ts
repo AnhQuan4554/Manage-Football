@@ -48,6 +48,7 @@ export async function listTeamOpponents(teamId: string, query?: string) {
     .from("matches")
     .select("id, team_id, opponent_name, opponent_phone, match_date_time, created_at, updated_at")
     .eq("team_id", teamId)
+    .neq("status", "cancelled")
     .not("opponent_name", "is", null)
     .order("match_date_time", { ascending: false });
 

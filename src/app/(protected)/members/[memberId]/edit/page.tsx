@@ -2,7 +2,11 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { EditMemberForm } from "@/features/members/components/EditMemberForm";
 import { getMemberById } from "@/features/members/services/memberService";
 
-export default async function EditMemberPage({ params }: { params: Promise<{ memberId: string }> }) {
+export default async function EditMemberPage({
+  params,
+}: {
+  params: Promise<{ memberId: string }>;
+}) {
   const { memberId } = await params;
   const member = (await getMemberById(memberId)).data;
 
@@ -12,7 +16,7 @@ export default async function EditMemberPage({ params }: { params: Promise<{ mem
 
   return (
     <div className="page-stack member-form-page">
-      <PageHeader title="Chỉnh sửa thành viên" subtitle={member.nickname} />
+      <PageHeader variant="form" title="Chỉnh sửa thành viên" subtitle={member.nickname} />
       <EditMemberForm member={member} />
     </div>
   );
