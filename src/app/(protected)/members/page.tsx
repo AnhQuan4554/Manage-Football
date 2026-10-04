@@ -1,3 +1,4 @@
+import { AdminOnly } from "@/features/auth/components/Permissions";
 import Link from "next/link";
 import { Button } from "antd";
 import { PlusOutlined, RightOutlined } from "@ant-design/icons";
@@ -25,7 +26,15 @@ export default async function MembersPage() {
       <PageHeader
         title="Thành viên"
         subtitle={activeMembers.length + " người đang sinh hoạt trong đội."}
-        action={<Link href="/members/new"><Button type="primary" icon={<PlusOutlined />}>Thêm</Button></Link>}
+        action={
+          <AdminOnly>
+            <Link href="/members/new">
+              <Button type="primary" icon={<PlusOutlined />}>
+                Thêm
+              </Button>
+            </Link>
+          </AdminOnly>
+        }
       />
 
       <section className="page-stack">
@@ -36,7 +45,9 @@ export default async function MembersPage() {
           {!membersResponse.success ? (
             <ErrorState
               title="Không thể tải được dữ liệu đội"
-              description={membersResponse.message ?? membersResponse.error ?? "Vui lòng thử lại sau."}
+              description={
+                membersResponse.message ?? membersResponse.error ?? "Vui lòng thử lại sau."
+              }
             />
           ) : activeMembers.length ? (
             <div className="members-roster-grid">
@@ -53,7 +64,10 @@ export default async function MembersPage() {
               ))}
             </div>
           ) : (
-            <EmptyState title="Hiện chưa có thành viên" description="Bấm Thêm để tạo thành viên đầu tiên cho đội." />
+            <EmptyState
+              title="Hiện chưa có thành viên"
+              description="Bấm Thêm để tạo thành viên đầu tiên cho đội."
+            />
           )}
         </div>
       </section>

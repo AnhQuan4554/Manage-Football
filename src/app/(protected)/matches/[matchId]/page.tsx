@@ -1,3 +1,4 @@
+import { AdminOnly } from "@/features/auth/components/Permissions";
 import Image from "next/image";
 import Link from "next/link";
 import { Button, Tag } from "antd";
@@ -282,15 +283,17 @@ export default async function MatchDetailPage({
           <DownOutlined className="match-detail-participants-chevron" />
         </summary>
         <div className="match-detail-participants-content">
-          <div className="match-detail-participants-toolbar">
-            <MatchParticipantsEditor
-              teamId={detail.match.teamId}
-              matchId={detail.match.id}
-              isCompleted={isCompleted}
-              members={members}
-              participants={participants}
-            />
-          </div>
+          <AdminOnly>
+            <div className="match-detail-participants-toolbar">
+              <MatchParticipantsEditor
+                teamId={detail.match.teamId}
+                matchId={detail.match.id}
+                isCompleted={isCompleted}
+                members={members}
+                participants={participants}
+              />
+            </div>
+          </AdminOnly>
           <div className="match-detail-participant-grid">
             {goingParticipants.length ? (
               goingParticipants.map((participant) => (
@@ -311,21 +314,23 @@ export default async function MatchDetailPage({
         </div>
       </details>
 
-      <div className="match-detail-actions">
-        <Link href={`/matches/${detail.match.id}/edit`}>
-          <Button type="primary" icon={<EditOutlined />}>
-            Cập nhật trận
-          </Button>
-        </Link>
-        {detail.match.status === "completed" && collection ? (
-          <Link href={`/funds/${detail.match.id}`}>
-            <Button icon={<WalletOutlined />}>Thu tiền</Button>
+      <AdminOnly>
+        <div className="match-detail-actions">
+          <Link href={`/matches/${detail.match.id}/edit`}>
+            <Button type="primary" icon={<EditOutlined />}>
+              Cập nhật trận
+            </Button>
           </Link>
-        ) : null}
-        {detail.match.status !== "completed" && detail.match.status !== "cancelled" ? (
-          <MarkMatchCompletedButton teamId={detail.match.teamId} matchId={detail.match.id} />
-        ) : null}
-      </div>
+          {detail.match.status === "completed" && collection ? (
+            <Link href={`/funds/${detail.match.id}`}>
+              <Button icon={<WalletOutlined />}>Thu tiền</Button>
+            </Link>
+          ) : null}
+          {detail.match.status !== "completed" && detail.match.status !== "cancelled" ? (
+            <MarkMatchCompletedButton teamId={detail.match.teamId} matchId={detail.match.id} />
+          ) : null}
+        </div>
+      </AdminOnly>
     </div>
   );
 }

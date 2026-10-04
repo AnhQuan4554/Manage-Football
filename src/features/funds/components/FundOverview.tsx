@@ -1,5 +1,7 @@
 "use client";
 
+import { AdminOnly } from "@/features/auth/components/Permissions";
+
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Button, Form, Input, InputNumber, Modal, Radio, Select, Tabs } from "antd";
@@ -131,9 +133,11 @@ export function FundOverview({
               {formatVnd(localBalance)}
             </h1>
           </div>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-            Tạo mới quỹ
-          </Button>
+          <AdminOnly>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+              Tạo mới quỹ
+            </Button>
+          </AdminOnly>
         </div>
         <div className="mini-stat-grid" style={{ marginTop: 18 }}>
           <HeroStat
@@ -190,13 +194,15 @@ export function FundOverview({
         </p>
       </section>
 
-      <FundModal
-        form={form}
-        open={modalOpen}
-        editing={Boolean(editingTransaction)}
-        onCancel={() => setModalOpen(false)}
-        onFinish={saveTransaction}
-      />
+      <AdminOnly>
+        <FundModal
+          form={form}
+          open={modalOpen}
+          editing={Boolean(editingTransaction)}
+          onCancel={() => setModalOpen(false)}
+          onFinish={saveTransaction}
+        />
+      </AdminOnly>
     </div>
   );
 }
@@ -254,7 +260,9 @@ function TransactionRow({
         {income ? "+" : "-"}
         {formatVnd(item.amount)}
       </strong>
-      <Button type="text" icon={<EditOutlined />} onClick={onEdit} aria-label="Sửa giao dịch" />
+      <AdminOnly>
+        <Button type="text" icon={<EditOutlined />} onClick={onEdit} aria-label="Sửa giao dịch" />
+      </AdminOnly>
     </div>
   );
 }

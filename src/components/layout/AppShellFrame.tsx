@@ -3,16 +3,30 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Button, Drawer, Space } from "antd";
+import { Drawer, Space } from "antd";
 import { MenuOutlined, RightOutlined } from "@ant-design/icons";
 import { useState, type ReactNode } from "react";
 import { bottomTabs, moreLinks } from "@/lib/constants/navigation";
 import type { Team } from "@/features/team-profile/types";
 import { TeamSwitcher } from "@/components/layout/TeamSwitcher";
 
+import { AuthSessionSync } from "@/features/auth/components/AuthSessionSync";
+import { AccountMenu } from "@/features/auth/components/AccountMenu";
+import type { Account } from "@/features/auth/types";
+
 type NavItem = (typeof bottomTabs)[number] | (typeof moreLinks)[number];
 
-export function AppShellFrame({ team, teams, children }: { team: Team; teams: Team[]; children: ReactNode }) {
+export function AppShellFrame({
+  team,
+  teams,
+  account,
+  children,
+}: {
+  team: Team;
+  teams: Team[];
+  account: Account | null;
+  children: ReactNode;
+}) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const primaryTabs = bottomTabs.slice(0, 4);
@@ -21,12 +35,21 @@ export function AppShellFrame({ team, teams, children }: { team: Team; teams: Te
 
   return (
     <div className="app-shell">
+      <AuthSessionSync />
       <aside className="sidebar">
         <div className="brand-row">
-          <Image src={team.logoUrl || "/logo-transparent.png"} alt="Pinkstorm FC" width={56} height={56} className="brand-logo" />
+          <Image
+            src={team.logoUrl || "/logo-transparent.png"}
+            alt="Pinkstorm FC"
+            width={56}
+            height={56}
+            className="brand-logo"
+          />
           <div>
             <strong>{team.name}</strong>
-            <div className="muted" style={{ fontSize: 12 }}>{team.area}</div>
+            <div className="muted" style={{ fontSize: 12 }}>
+              {team.area}
+            </div>
           </div>
         </div>
         <nav>
@@ -37,13 +60,20 @@ export function AppShellFrame({ team, teams, children }: { team: Team; teams: Te
           </Space>
         </nav>
         <div className="sidebar-footer">
+          <AccountMenu account={account} />
           <TeamSwitcher team={team} teams={teams} />
         </div>
       </aside>
 
       <div className="shell-content">
         <header className="mobile-topbar">
-          <Image src={team.logoUrl || "/logo-transparent.png"} alt="Pinkstorm FC" width={36} height={36} className="brand-logo" />
+          <Image
+            src={team.logoUrl || "/logo-transparent.png"}
+            alt="Pinkstorm FC"
+            width={36}
+            height={36}
+            className="brand-logo"
+          />
           <TeamSwitcher team={team} teams={teams} compact />
         </header>
         <main className="main">{children}</main>
@@ -73,16 +103,16 @@ export function AppShellFrame({ team, teams, children }: { team: Team; teams: Te
               className="drawer-link"
               onClick={() => setMoreOpen(false)}
             >
-              <span className="icon-chip"><item.icon /></span>
+              <span className="icon-chip">
+                <item.icon />
+              </span>
               <span style={{ minWidth: 0, flex: 1 }}>
                 <strong>{item.label}</strong>
               </span>
               <RightOutlined className="muted" />
             </Link>
           ))}
-          <Link href="/login" prefetch={false} onClick={() => setMoreOpen(false)}>
-            <Button block>Đăng xuất</Button>
-          </Link>
+          <AccountMenu account={account} />
         </Space>
       </Drawer>
     </div>

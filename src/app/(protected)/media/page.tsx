@@ -1,3 +1,4 @@
+import { AdminOnly } from "@/features/auth/components/Permissions";
 import { Button, Card, Col, Row, Tag } from "antd";
 import { PictureOutlined, VideoCameraOutlined } from "@ant-design/icons";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -16,14 +17,23 @@ export default function MediaPage() {
   return (
     <div className="page-stack">
       <PageHeader title="Media" subtitle="Một nơi cho ảnh và video của đội." />
-      <Button type="primary" block>Tải ảnh/video lên</Button>
+      <AdminOnly>
+        <Button type="primary" block>
+          Tải ảnh/video lên
+        </Button>
+      </AdminOnly>
       <Row gutter={[12, 12]}>
         {media.map(([title, kind], index) => (
           <Col xs={kind === "video" ? 24 : 12} md={8} key={title}>
             <Card className="surface" style={{ minHeight: kind === "video" ? 180 : 140 }}>
-              <div style={{ color: uiColors.brand.primary, fontSize: 28 }}>{kind === "video" ? <VideoCameraOutlined /> : <PictureOutlined />}</div>
+              <div style={{ color: uiColors.brand.primary, fontSize: 28 }}>
+                {kind === "video" ? <VideoCameraOutlined /> : <PictureOutlined />}
+              </div>
               <strong>{title}</strong>
-              <div><Tag color="magenta">{kind === "video" ? "Video" : "Ảnh"}</Tag><Tag>2026-08-{10 + index}</Tag></div>
+              <div>
+                <Tag color="magenta">{kind === "video" ? "Video" : "Ảnh"}</Tag>
+                <Tag>2026-08-{10 + index}</Tag>
+              </div>
             </Card>
           </Col>
         ))}

@@ -1,22 +1,18 @@
-import Link from "next/link";
-import Image from "next/image";
+import { redirect } from "next/navigation";
+import { AuthForm } from "@/features/auth/components/AuthForm";
+import { getCurrentAccount } from "@/features/auth/server";
+import { safeNextPath } from "@/features/auth/utils";
 
-export default function LoginPage() {
-  return (
-    <main className="main" style={{ maxWidth: 440 }}>
-      <section className="surface" style={{ padding: 22 }}>
-        <div style={{ textAlign: "center", marginBottom: 18 }}>
-          <Image src="/logo-transparent.png" alt="Pinkstorm FC" width={96} height={96} className="brand-logo" style={{ width: 96, height: 96 }} />
-          <h1>Pinkstorm FC</h1>
-          <p className="muted">Đăng nhập để quản lý đội bóng sân 7.</p>
-        </div>
-        <label>Email</label>
-        <input className="field" placeholder="captain@pinkstorm.vn" />
-        <label>Mật khẩu</label>
-        <input className="field" type="password" placeholder="••••••••" />
-        <Link className="primary-action" href="/dashboard">Đăng nhập</Link>
-        <Link className="secondary-action" href="/register">Tạo tài khoản</Link>
-      </section>
-    </main>
-  );
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string; error?: string }>;
+}) {
+  const params = await searchParams;
+  const next = safeNextPath(params.next);
+  if (await getCurrentAccount()) redirect(next);
+  const error = params.error
+    ? "Không thể hoàn tất xác thực. Liên kết có thể đã hết hạn hoặc bạn đã hủy đăng nhập. Vui lòng thử lại."
+    : "";
+  return <AuthForm next={next} initialError={error} />;
 }

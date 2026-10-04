@@ -1,3 +1,4 @@
+import { AdminOnly } from "@/features/auth/components/Permissions";
 import { Card } from "antd";
 import { MoneyInput } from "@/components/common/MoneyInput";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -12,19 +13,21 @@ export default async function ExpensesPage() {
         title="Thu chi khác"
         subtitle="Tiền đá bóng, tiền áo, liên hoan/đi nhậu. Không biến thành ERP."
       />
-      <section className="surface form-surface">
-        <label>Tên khoản</label>
-        <input className="field" />
-        <label>Nhóm</label>
-        <select className="field">
-          <option>Tiền đá bóng</option>
-          <option>Tiền áo</option>
-          <option>Liên hoan/đi nhậu</option>
-        </select>
-        <label>Số tiền</label>
-        <MoneyInput className="field" placeholder="500.000" />
-        <button className="button-reset primary-action">Lưu khoản thu/chi</button>
-      </section>
+      <AdminOnly>
+        <section className="surface form-surface">
+          <label>Tên khoản</label>
+          <input className="field" />
+          <label>Nhóm</label>
+          <select className="field">
+            <option>Tiền đá bóng</option>
+            <option>Tiền áo</option>
+            <option>Liên hoan/đi nhậu</option>
+          </select>
+          <label>Số tiền</label>
+          <MoneyInput className="field" placeholder="500.000" />
+          <button className="button-reset primary-action">Lưu khoản thu/chi</button>
+        </section>
+      </AdminOnly>
       <Card className="surface" title="Danh sách">
         <div className="page-stack">
           {data.transactions.length ? (

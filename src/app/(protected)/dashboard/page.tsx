@@ -1,3 +1,4 @@
+import { AdminOnly } from "@/features/auth/components/Permissions";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
@@ -52,36 +53,38 @@ export default async function DashboardPage() {
         />
       </section>
 
-      <section className="page-stack">
-        <div className="section-header">
-          <div>
-            <h2>Cần bạn xử lý</h2>
-            <p className="muted" style={{ margin: "5px 0 0" }}>
-              Việc nhanh cho đội trưởng và thủ quỹ.
-            </p>
+      <AdminOnly>
+        <section className="page-stack">
+          <div className="section-header">
+            <div>
+              <h2>Cần bạn xử lý</h2>
+              <p className="muted" style={{ margin: "5px 0 0" }}>
+                Việc nhanh cho đội trưởng và thủ quỹ.
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="page-stack">
-          <TodoRow
-            icon={<CalendarOutlined />}
-            title="Tạo trận mới"
-            desc="Chốt lịch, sân và đối thủ."
-            href="/matches/new"
-          />
-          <TodoRow
-            icon={<CheckCircleOutlined />}
-            title="Duyệt thành viên chờ vào đội"
-            desc="Kiểm tra các yêu cầu đăng ký mới."
-            href="/members"
-          />
-          <TodoRow
-            icon={<WalletOutlined />}
-            title="Theo dõi người chưa đóng tiền sân"
-            desc="Xem công nợ tiền sân và trạng thái đã đóng/chưa đóng."
-            href="/statistics"
-          />
-        </div>
-      </section>
+          <div className="page-stack">
+            <TodoRow
+              icon={<CalendarOutlined />}
+              title="Tạo trận mới"
+              desc="Chốt lịch, sân và đối thủ."
+              href="/matches/new"
+            />
+            <TodoRow
+              icon={<CheckCircleOutlined />}
+              title="Duyệt thành viên chờ vào đội"
+              desc="Kiểm tra các yêu cầu đăng ký mới."
+              href="/members"
+            />
+            <TodoRow
+              icon={<WalletOutlined />}
+              title="Theo dõi người chưa đóng tiền sân"
+              desc="Xem công nợ tiền sân và trạng thái đã đóng/chưa đóng."
+              href="/statistics"
+            />
+          </div>
+        </section>
+      </AdminOnly>
 
       <section>
         <div className="section-header">

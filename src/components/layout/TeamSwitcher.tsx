@@ -7,13 +7,6 @@ import { useEffect, useState } from "react";
 import type { Team } from "@/features/team-profile/types";
 const currentTeamStorageKey = "currentTeamId";
 
-const roleLabel: Record<Team["myRole"], string> = {
-  owner: "Chủ đội",
-  captain: "Đội trưởng",
-  treasurer: "Thủ quỹ",
-  member: "Thành viên",
-};
-
 export function TeamSwitcher({
   team,
   teams,
@@ -57,9 +50,7 @@ export function TeamSwitcher({
         <span style={{ minWidth: 0, flex: 1 }}>
           <span className="team-switcher-name">{selectedTeam.name}</span>
           {!compact ? (
-            <span className="team-switcher-meta">
-              {roleLabel[selectedTeam.myRole]} · {selectedTeam.memberCount} thành viên
-            </span>
+            <span className="team-switcher-meta">{selectedTeam.memberCount} thành viên</span>
           ) : null}
         </span>
         <SwapOutlined className="muted" />
@@ -74,7 +65,7 @@ export function TeamSwitcher({
         height="auto"
       >
         <p className="muted" style={{ margin: "0 0 16px" }}>
-          Bạn đang tham gia {availableTeams.length} đội bóng.
+          Danh sách {availableTeams.length} đội bóng.
         </p>
         <div className="page-stack" style={{ gap: 10 }}>
           {availableTeams.map((item) => {
@@ -90,9 +81,7 @@ export function TeamSwitcher({
                 <span className="team-avatar">{initials(item.name)}</span>
                 <span style={{ minWidth: 0, flex: 1 }}>
                   <span className="team-option-name">{item.name}</span>
-                  <span className="team-option-meta">
-                    {roleLabel[item.myRole]} · {item.area}
-                  </span>
+                  <span className="team-option-meta">{item.area}</span>
                 </span>
                 {active ? <CheckOutlined style={{ color: "var(--pink)" }} /> : null}
               </button>

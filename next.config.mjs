@@ -9,6 +9,11 @@ const withPWA = withPWAInit({
   importScripts: ["/push-worker.js"],
   runtimeCaching: [
     {
+      // Supabase Auth responses must never be reused from the PWA cache.
+      urlPattern: ({ url }) => url.pathname.startsWith("/auth/v1/"),
+      handler: "NetworkOnly",
+    },
+    {
       // Fetch current HTML, RSC and API data after edits, deletions and team switches.
       urlPattern: ({ request, url, sameOrigin }) =>
         sameOrigin &&

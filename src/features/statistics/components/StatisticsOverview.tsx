@@ -1,5 +1,7 @@
 "use client";
 
+import { AdminOnly } from "@/features/auth/components/Permissions";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
@@ -186,24 +188,26 @@ export function StatisticsOverview({
                       </span>
                     </span>
                     {payableMatches.length ? (
-                      <Button
-                        type="primary"
-                        size="small"
-                        className="member-debt-pay-all"
-                        aria-label={`Đóng đủ các khoản đang thiếu của ${row.name}`}
-                        disabled={Boolean(paymentSubmittingKey)}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          setPaymentConfirmation({
-                            memberName: row.name,
-                            items: payableMatches,
-                            submittingKey: rowSubmittingKey,
-                          });
-                        }}
-                      >
-                        Đóng đủ
-                      </Button>
+                      <AdminOnly>
+                        <Button
+                          type="primary"
+                          size="small"
+                          className="member-debt-pay-all"
+                          aria-label={`Đóng đủ các khoản đang thiếu của ${row.name}`}
+                          disabled={Boolean(paymentSubmittingKey)}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setPaymentConfirmation({
+                              memberName: row.name,
+                              items: payableMatches,
+                              submittingKey: rowSubmittingKey,
+                            });
+                          }}
+                        >
+                          Đóng đủ
+                        </Button>
+                      </AdminOnly>
                     ) : null}
                   </summary>
                   {isRowSubmitting ? (
@@ -242,16 +246,18 @@ export function StatisticsOverview({
                                 <LogoLoading label="" size="sm" />
                               </div>
                             ) : (
-                              <Button
-                                type="primary"
-                                size="small"
-                                className="member-debt-pay-one"
-                                aria-label={`Xác nhận ${row.name} đã đóng đủ trận gặp ${item.opponentName}`}
-                                disabled={Boolean(paymentSubmittingKey)}
-                                onClick={() => void markDebtItemsPaid([item], itemSubmittingKey)}
-                              >
-                                Đã đóng
-                              </Button>
+                              <AdminOnly>
+                                <Button
+                                  type="primary"
+                                  size="small"
+                                  className="member-debt-pay-one"
+                                  aria-label={`Xác nhận ${row.name} đã đóng đủ trận gặp ${item.opponentName}`}
+                                  disabled={Boolean(paymentSubmittingKey)}
+                                  onClick={() => void markDebtItemsPaid([item], itemSubmittingKey)}
+                                >
+                                  Đã đóng
+                                </Button>
+                              </AdminOnly>
                             )
                           ) : null}
                         </div>
@@ -267,58 +273,60 @@ export function StatisticsOverview({
         )}
       </section>
 
-      <Modal
-        centered
-        title="Xác nhận đóng đủ"
-        open={Boolean(paymentConfirmation)}
-        onCancel={() => setPaymentConfirmation(null)}
-        footer={null}
-        closable={!paymentSubmittingKey}
-        maskClosable={!paymentSubmittingKey}
-        destroyOnHidden
-      >
-        {paymentConfirmation ? (
-          <div className="member-debt-confirm">
-            <p>
-              Bạn có chắc chắn <strong>{paymentConfirmation.memberName}</strong> đã đóng đủ các trận
-              sau?
-            </p>
-            <ul className="member-debt-confirm-list">
-              {paymentConfirmation.items.map((item) => (
-                <li key={item.itemId}>
-                  <span>
-                    <strong>vs {item.opponentName}</strong>
-                    <small>{formatDateShort(item.date)}</small>
-                  </span>
-                  <strong>{formatVnd(item.missingAmount)}</strong>
-                </li>
-              ))}
-            </ul>
-            {paymentSubmittingKey === paymentConfirmation.submittingKey ? (
-              <LogoLoading
-                label={`Đang cập nhật ${paymentConfirmation.items.length} trận...`}
-                size="sm"
-              />
-            ) : null}
-            <div className="member-debt-confirm-actions">
-              <Button
-                disabled={Boolean(paymentSubmittingKey)}
-                onClick={() => setPaymentConfirmation(null)}
-              >
-                Hủy
-              </Button>
-              <Button
-                type="primary"
-                className="member-debt-confirm-button"
-                disabled={Boolean(paymentSubmittingKey)}
-                onClick={() => void confirmMemberDebtPaid()}
-              >
-                Xác nhận
-              </Button>
+      <AdminOnly>
+        <Modal
+          centered
+          title="Xác nhận đóng đủ"
+          open={Boolean(paymentConfirmation)}
+          onCancel={() => setPaymentConfirmation(null)}
+          footer={null}
+          closable={!paymentSubmittingKey}
+          maskClosable={!paymentSubmittingKey}
+          destroyOnHidden
+        >
+          {paymentConfirmation ? (
+            <div className="member-debt-confirm">
+              <p>
+                Bạn có chắc chắn <strong>{paymentConfirmation.memberName}</strong> đã đóng đủ các
+                trận sau?
+              </p>
+              <ul className="member-debt-confirm-list">
+                {paymentConfirmation.items.map((item) => (
+                  <li key={item.itemId}>
+                    <span>
+                      <strong>vs {item.opponentName}</strong>
+                      <small>{formatDateShort(item.date)}</small>
+                    </span>
+                    <strong>{formatVnd(item.missingAmount)}</strong>
+                  </li>
+                ))}
+              </ul>
+              {paymentSubmittingKey === paymentConfirmation.submittingKey ? (
+                <LogoLoading
+                  label={`Đang cập nhật ${paymentConfirmation.items.length} trận...`}
+                  size="sm"
+                />
+              ) : null}
+              <div className="member-debt-confirm-actions">
+                <Button
+                  disabled={Boolean(paymentSubmittingKey)}
+                  onClick={() => setPaymentConfirmation(null)}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  type="primary"
+                  className="member-debt-confirm-button"
+                  disabled={Boolean(paymentSubmittingKey)}
+                  onClick={() => void confirmMemberDebtPaid()}
+                >
+                  Xác nhận
+                </Button>
+              </div>
             </div>
-          </div>
-        ) : null}
-      </Modal>
+          ) : null}
+        </Modal>
+      </AdminOnly>
 
       {split && match && latestSummary ? (
         <section className="surface-card statistics-latest-card">
@@ -370,9 +378,11 @@ export function StatisticsOverview({
             </div>
           ) : null}
           <Link href={`/funds/${match.id}`}>
-            <Button type="primary" block className="statistics-primary-action">
-              Quản lý thu tiền trận này
-            </Button>
+            <AdminOnly>
+              <Button type="primary" block className="statistics-primary-action">
+                Quản lý thu tiền trận này
+              </Button>
+            </AdminOnly>
           </Link>
         </section>
       ) : null}

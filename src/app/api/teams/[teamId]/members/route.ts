@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/features/auth/server";
 import { jsonResponse } from "@/lib/api/http";
 import { createTeamMember, listTeamMembers } from "@/features/members/services/memberApiService";
 import type { NextRequest } from "next/server";
@@ -9,7 +10,7 @@ type RouteParams = {
 };
 
 export async function GET(_request: NextRequest, { params }: RouteParams) {
-  console.log('calling listTeamMembers');
+  console.log("calling listTeamMembers");
   const { teamId } = await params;
   const result = await listTeamMembers(teamId);
 
@@ -17,6 +18,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
+  const permission = await requireAdmin();
+  if (permission.status !== 200) return jsonResponse(permission.result, permission.status);
   const { teamId } = await params;
   const body = await request.json();
   const result = await createTeamMember(teamId, body);

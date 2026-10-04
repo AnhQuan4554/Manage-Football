@@ -1,3 +1,4 @@
+import { AdminOnly } from "@/features/auth/components/Permissions";
 import Link from "next/link";
 import { Button, Tag } from "antd";
 import {
@@ -82,15 +83,17 @@ export function MatchSummaryCard({ match }: { match: Match }) {
           <TeamOutlined /> {participantLabel}
         </span>
         {isCompleted ? (
-          <Link
-            href={`/matches/${match.id}/edit`}
-            className="match-card-edit-link"
-            prefetch={false}
-          >
-            <Button size="small" icon={<EditOutlined />}>
-              Sửa người/chia tiền
-            </Button>
-          </Link>
+          <AdminOnly>
+            <Link
+              href={`/matches/${match.id}/edit`}
+              className="match-card-edit-link"
+              prefetch={false}
+            >
+              <Button size="small" icon={<EditOutlined />}>
+                Sửa người/chia tiền
+              </Button>
+            </Link>
+          </AdminOnly>
         ) : null}
       </div>
     </article>
