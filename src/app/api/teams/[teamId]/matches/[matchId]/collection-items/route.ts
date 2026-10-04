@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/features/auth/server";
 import { jsonResponse } from "@/lib/api/http";
 import { updateCollectionItemsPayment } from "@/features/matches/services/matchApiService";
 import type { NextRequest } from "next/server";
@@ -10,6 +11,8 @@ type RouteContext = {
 };
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const permission = await requireAdmin();
+  if (permission.status !== 200) return jsonResponse(permission.result, permission.status);
   const { teamId, matchId } = await params;
   const body = await request.json();
   const result = await updateCollectionItemsPayment(teamId, matchId, body);

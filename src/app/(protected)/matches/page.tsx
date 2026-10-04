@@ -1,3 +1,4 @@
+import { AdminOnly } from "@/features/auth/components/Permissions";
 import Link from "next/link";
 import { Button } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
@@ -15,11 +16,13 @@ export default async function MatchesPage() {
         title="Trận đấu"
         subtitle="Sân 7, lịch giao hữu, đối thủ và tình trạng chốt đội hình."
         action={
-          <Link href="/matches/new">
-            <Button type="primary" icon={<PlusOutlined />}>
-              Tạo trận
-            </Button>
-          </Link>
+          <AdminOnly>
+            <Link href="/matches/new">
+              <Button type="primary" icon={<PlusOutlined />}>
+                Tạo trận
+              </Button>
+            </Link>
+          </AdminOnly>
         }
       />
       <MatchesBoard matches={matches} currentMonthKey={currentMonthKey} />

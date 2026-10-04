@@ -273,7 +273,7 @@ Mỗi mã dùng một lần cho một thiết bị, hạn 7 ngày. Khi thiết b
 1. Dùng Safari mở URL production.
 2. Chọn Chia sẻ → Thêm vào Màn hình chính.
 3. Mở app từ biểu tượng vừa thêm, không chỉ mở lại tab Safari.
-4. Vào Cài đặt → Thông báo, hoặc mở đường dẫn `/notifications` trong app.
+4. Vào Cài đặt → Thông báo. Nếu app mở màn hình đăng nhập, chọn **Bật thông báo trên điện thoại**; không cần tạo tài khoản để kích hoạt Push.
 5. Nhập mã được cấp riêng.
 6. Chạm **Bật thông báo** → **Cho phép** khi iOS hỏi.
 7. Chạm nút gửi thử. Khóa màn hình để kiểm tra điện thoại thực sự nhận.
@@ -380,6 +380,36 @@ Muốn tạm dừng: đặt `PWA_PUSH_ENABLED=false` trên Vercel Production r�
 - Workflow đã có trong mã nguồn, chưa được chạy trên GitHub vì chưa push/commit thay người dùng.
 
 Không dùng “build thành công” thay cho kết luận “điện thoại đã nhận thông báo”.
+
+## 13. Rà soát ngày 12/09/2026
+
+Đã kiểm tra hệ thống thực tế, không chỉ dựa vào danh sách setup cũ:
+
+- Vercel Production đã có cấu hình Push và Supabase. API config trả HTTP 200, `enabled: true`, public key khớp khóa đang lưu cục bộ; không cần tạo lại VAPID hoặc đặt tên môi trường mới.
+- Migration PWA đã áp dụng; ba bảng bật RLS, chỉ service-role được đọc. Hai job Cron và hai Vault secret đã có.
+- Thành viên test `6de34528-6af8-454b-8efe-889fe55bd76b` (Quan Nguyên, Vua cột 2) thuộc đúng đội, trạng thái active, role captain. `user_id: null` không cản trở Push vì thiết bị được ghép qua mã riêng, không qua tài khoản đăng nhập.
+- Mã trong mục riêng của thành viên ở `.pwa-invitations.local.md` đã đối chiếu bằng hash với database: chưa sử dụng, quyền đội trưởng đã xác nhận, hạn 19:33 ngày 13/09/2026 (giờ Việt Nam). Không đưa mã vào tài liệu commit này.
+- Chưa có thiết bị đăng ký tại thời điểm kiểm tra. Không thể tạo subscription thực từ JSON thành viên: điện thoại phải tự xin quyền và đăng ký với dịch vụ Push.
+
+### Lỗi phát hiện và sửa
+
+Log HTTP trong 6 giờ kiểm tra có 43 lần 500 và 29 lần 200, dù Cron SQL báo succeeded. Log bổ sung xác định Supabase trả HTTP 504 ở thao tác cập nhật `push_deliveries`.
+
+`database-fetch.ts` thử lại tối đa 3 lần cho GET/HEAD và PATCH hàng đợi với cùng dữ liệu/điều kiện, nghỉ ngắn giữa các lần. Không tự thử lại RPC claim, đăng ký thiết bị hoặc cập nhật giới hạn gửi thử vì kết quả phản hồi bị mất có thể làm thao tác bị lặp. Log chỉ giữ tên tài nguyên cho phép, HTTP status và mã lỗi; không ghi khóa, subscription, mã mời, query string hoặc nội dung lỗi chứa dữ liệu.
+
+Trang đăng nhập có đường dẫn **Bật thông báo trên điện thoại** để vào trang kích hoạt trong PWA mà không cần đăng nhập. Không thay đổi cơ chế đăng nhập hoặc vai trò.
+
+### Cấu hình local và kiểm thử
+
+`.env.local` hiện có server key trống, nên CLI quản trị yêu cầu key sẽ không chạy được tại máy này. Đây không phải cấu hình thiếu của Production và không cần điền để test điện thoại qua URL HTTPS. Không tự bịa server key hoặc sao chép toàn bộ secrets Production về máy. `.env.pwa.local` là nguồn riêng cho script cấu hình, không phải file Next.js tự nạp.
+
+- Test thông báo: 21/21 đạt, gồm phục hồi 504, giới hạn retry, không retry claim/throttle và không lộ dữ liệu trong log.
+- TypeScript: `pnpm exec tsc --noEmit --incremental false` đạt.
+- Đã kiểm tra trang kích hoạt bằng Chrome ở desktop và chiều rộng 390px; đã bấm đường dẫn từ trang đăng nhập tới trang thông báo. Đây là kiểm tra giao diện, chưa phải kiểm tra nhận Push trên iPhone.
+- Vercel Production: `dpl_9tWySdmQGfwdpNNScyuBRp57C893`, trạng thái READY, Next.js 15.5.23, build trên Vercel 48 giây. Mã nguồn local trên nền commit `78abd64`, các sửa đổi lần này chưa commit/push.
+- API config trả 200, enabled true, public key khớp. API đọc trạng thái với token ngẫu nhiên chưa đăng ký trả 401 đúng thông báo (không còn lỗi database trong lần kiểm tra này). Hai worker, manifest và hai icon đều trả 200.
+- Kiểm tra lúc 17:44 ngày 12/09: từ 16:30 có 13 lần Cron trả 200 và 2 lần trả 500 (16:30, 16:40). Sau đó 12 lần liên tiếp từ 16:45 đến 17:40 đều trả 200, không timeout. Đây là xác nhận phục hồi trong khoảng đã quan sát; retry không bảo đảm Supabase sẽ không có lỗi tạm thời nữa.
+- Thành viên test vẫn có 0 thiết bị, chưa xác nhận nhận thông báo thực trên điện thoại. Người dùng cần cài PWA, nhập đúng mã riêng, cấp quyền và bấm Gửi thử. Không dùng trạng thái sent của provider để khẳng định iOS đã hiển thị banner.
 
 ## Nguồn chính thức để học thêm
 

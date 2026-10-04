@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/features/auth/server";
 import { jsonResponse } from "@/lib/api/http";
 import { createOpponent, listTeamOpponents } from "@/features/opponents/services/opponentService";
 import type { NextRequest } from "next/server";
@@ -17,6 +18,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
+  const permission = await requireAdmin();
+  if (permission.status !== 200) return jsonResponse(permission.result, permission.status);
   const { teamId } = await params;
   const body = await request.json();
   const result = await createOpponent(teamId, body);

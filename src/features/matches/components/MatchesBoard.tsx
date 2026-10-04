@@ -1,5 +1,7 @@
 "use client";
 
+import { AdminOnly } from "@/features/auth/components/Permissions";
+
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -124,11 +126,13 @@ export function MatchesBoard({
             }
             action={
               view === "scheduled" ? (
-                <Link href="/matches/new">
-                  <Button type="primary" icon={<PlusOutlined />}>
-                    Tạo trận mới
-                  </Button>
-                </Link>
+                <AdminOnly>
+                  <Link href="/matches/new">
+                    <Button type="primary" icon={<PlusOutlined />}>
+                      Tạo trận mới
+                    </Button>
+                  </Link>
+                </AdminOnly>
               ) : null
             }
           />

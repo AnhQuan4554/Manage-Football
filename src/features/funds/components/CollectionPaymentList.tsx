@@ -1,5 +1,7 @@
 "use client";
 
+import { AdminOnly, useCanManage } from "@/features/auth/components/Permissions";
+
 import { App, Button, Checkbox, DatePicker, Input, Modal, Space, Tag, TimePicker } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { useRouter } from "next/navigation";
@@ -53,6 +55,7 @@ export function CollectionPaymentList({
   members: TeamMember[];
 }) {
   const router = useRouter();
+  const canManage = useCanManage();
   const { message } = App.useApp();
   const [activeItem, setActiveItem] = useState<PaymentItem | null>(null);
   const [paidDate, setPaidDate] = useState<Dayjs>(dayjs());
@@ -173,31 +176,33 @@ export function CollectionPaymentList({
   return (
     <>
       <div className="page-stack">
-        <div
-          style={{
-            alignItems: "center",
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 12,
-            justifyContent: "space-between",
-          }}
-        >
-          <Checkbox
-            checked={allSelectableSelected}
-            indeterminate={partiallySelected}
-            disabled={!selectableItemIds.length || bulkSubmitting}
-            onChange={(event) => toggleAllSelected(event.target.checked)}
+        <AdminOnly>
+          <div
+            style={{
+              alignItems: "center",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 12,
+              justifyContent: "space-between",
+            }}
           >
-            Chọn người chưa đóng
-          </Checkbox>
-          <Button
-            type="primary"
-            onClick={updateBulkPayments}
-            disabled={!selectedSelectableCount || bulkSubmitting}
-          >
-            {selectedSelectableCount ? `Đã đóng (${selectedSelectableCount})` : "Đã đóng"}
-          </Button>
-        </div>
+            <Checkbox
+              checked={allSelectableSelected}
+              indeterminate={partiallySelected}
+              disabled={!selectableItemIds.length || bulkSubmitting}
+              onChange={(event) => toggleAllSelected(event.target.checked)}
+            >
+              Chọn người chưa đóng
+            </Checkbox>
+            <Button
+              type="primary"
+              onClick={updateBulkPayments}
+              disabled={!selectedSelectableCount || bulkSubmitting}
+            >
+              {selectedSelectableCount ? `Đã đóng (${selectedSelectableCount})` : "Đã đóng"}
+            </Button>
+          </div>
+        </AdminOnly>
         {bulkSubmitting ? <LogoLoading label="Đang cập nhật nhiều người..." size="sm" /> : null}
 
         {items.map((item) => {
@@ -219,16 +224,18 @@ export function CollectionPaymentList({
                 borderRadius: 16,
                 display: "grid",
                 gap: 12,
-                gridTemplateColumns: "auto minmax(0, 1fr) auto",
+                gridTemplateColumns: canManage ? "auto minmax(0, 1fr) auto" : "minmax(0, 1fr)",
                 padding: 14,
               }}
             >
-              <Checkbox
-                checked={selectedItemIds.includes(item.id)}
-                disabled={!isSelectable || isSubmitting || bulkSubmitting}
-                onChange={(event) => toggleSelectedItem(item.id, event.target.checked)}
-                aria-label={`Chọn ${member?.nickname || item.participantName}`}
-              />
+              <AdminOnly>
+                <Checkbox
+                  checked={selectedItemIds.includes(item.id)}
+                  disabled={!isSelectable || isSubmitting || bulkSubmitting}
+                  onChange={(event) => toggleSelectedItem(item.id, event.target.checked)}
+                  aria-label={`Chọn ${member?.nickname || item.participantName}`}
+                />
+              </AdminOnly>
 
               <div style={{ minWidth: 0 }}>
                 <Space wrap size={8}>
@@ -247,84 +254,88 @@ export function CollectionPaymentList({
                 {isSubmitting ? <LogoLoading label="Đang cập nhật tiền..." size="sm" /> : null}
               </div>
 
-              <Space wrap style={{ justifyContent: "flex-end" }}>
-                {canMarkPaid ? (
-                  <Button
-                    type="primary"
-                    onClick={() => openPaidModal(item)}
-                    disabled={isSubmitting || bulkSubmitting}
-                  >
-                    {item.status === "partial" ? "Xác nhận đủ" : "Đã đóng"}
-                  </Button>
-                ) : null}
-                {canUndo ? (
-                  <Button
-                    danger
-                    onClick={() => updatePayment(item, "mark_unpaid")}
-                    disabled={isSubmitting || bulkSubmitting}
-                  >
-                    Hoàn tác
-                  </Button>
-                ) : null}
-              </Space>
+              <AdminOnly>
+                <Space wrap style={{ justifyContent: "flex-end" }}>
+                  {canMarkPaid ? (
+                    <Button
+                      type="primary"
+                      onClick={() => openPaidModal(item)}
+                      disabled={isSubmitting || bulkSubmitting}
+                    >
+                      {item.status === "partial" ? "Xác nhận đủ" : "Đã đóng"}
+                    </Button>
+                  ) : null}
+                  {canUndo ? (
+                    <Button
+                      danger
+                      onClick={() => updatePayment(item, "mark_unpaid")}
+                      disabled={isSubmitting || bulkSubmitting}
+                    >
+                      Hoàn tác
+                    </Button>
+                  ) : null}
+                </Space>
+              </AdminOnly>
             </div>
           );
         })}
       </div>
 
-      <Modal
-        title={activeItem ? `Xác nhận ${activeItem.participantName} đã đóng` : "Xác nhận đủ đóng"}
-        open={Boolean(activeItem)}
-        onCancel={() => setActiveItem(null)}
-        footer={null}
-        destroyOnHidden
-      >
-        {activeItem ? (
-          <Space direction="vertical" size={14} style={{ width: "100%" }}>
-            <p className="muted" style={{ margin: 0 }}>
-              Mặc định là thời điểm mở popup, có thể chọn lại ngày giờ trước khi xác nhận.
-            </p>
-            <div>
-              <label>Ngày đóng</label>
-              <DatePicker
-                value={paidDate}
-                onChange={(value) => value && setPaidDate(value)}
-                style={{ width: "100%" }}
-                format="DD/MM/YYYY"
-              />
-            </div>
-            <div>
-              <label>Giờ đóng</label>
-              <TimePicker
-                value={paidTime}
-                onChange={(value) => value && setPaidTime(value)}
-                style={{ width: "100%" }}
-                format="HH:mm"
-              />
-            </div>
-            <div>
-              <label>Ghi chú</label>
-              <Input.TextArea
-                rows={3}
-                value={paymentNote}
-                onChange={(event) => setPaymentNote(event.target.value)}
-                placeholder="VD: chuyển khoản, tiền mặt, gộp nhiều trận..."
-              />
-            </div>
-            {submittingId === activeItem.id ? (
-              <LogoLoading label="Đang xác nhận tiền..." size="sm" />
-            ) : null}
-            <Button
-              type="primary"
-              block
-              disabled={submittingId === activeItem.id}
-              onClick={() => updatePayment(activeItem, "mark_paid")}
-            >
-              Xác nhận Đã đóng đủ
-            </Button>
-          </Space>
-        ) : null}
-      </Modal>
+      <AdminOnly>
+        <Modal
+          title={activeItem ? `Xác nhận ${activeItem.participantName} đã đóng` : "Xác nhận đủ đóng"}
+          open={Boolean(activeItem)}
+          onCancel={() => setActiveItem(null)}
+          footer={null}
+          destroyOnHidden
+        >
+          {activeItem ? (
+            <Space direction="vertical" size={14} style={{ width: "100%" }}>
+              <p className="muted" style={{ margin: 0 }}>
+                Mặc định là thời điểm mở popup, có thể chọn lại ngày giờ trước khi xác nhận.
+              </p>
+              <div>
+                <label>Ngày đóng</label>
+                <DatePicker
+                  value={paidDate}
+                  onChange={(value) => value && setPaidDate(value)}
+                  style={{ width: "100%" }}
+                  format="DD/MM/YYYY"
+                />
+              </div>
+              <div>
+                <label>Giờ đóng</label>
+                <TimePicker
+                  value={paidTime}
+                  onChange={(value) => value && setPaidTime(value)}
+                  style={{ width: "100%" }}
+                  format="HH:mm"
+                />
+              </div>
+              <div>
+                <label>Ghi chú</label>
+                <Input.TextArea
+                  rows={3}
+                  value={paymentNote}
+                  onChange={(event) => setPaymentNote(event.target.value)}
+                  placeholder="VD: chuyển khoản, tiền mặt, gộp nhiều trận..."
+                />
+              </div>
+              {submittingId === activeItem.id ? (
+                <LogoLoading label="Đang xác nhận tiền..." size="sm" />
+              ) : null}
+              <Button
+                type="primary"
+                block
+                disabled={submittingId === activeItem.id}
+                onClick={() => updatePayment(activeItem, "mark_paid")}
+              >
+                Xác nhận Đã đóng đủ
+              </Button>
+            </Space>
+          ) : null}
+        </Modal>
+      </AdminOnly>
     </>
   );
 }

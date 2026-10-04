@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
 import { validateSubscription } from "./utils";
+import { fetchPushDatabase } from "./database-fetch";
 import type { PushDeviceStatus, PushSubscriptionInput } from "./types";
 
 export function pushEnabled() {
@@ -19,7 +20,7 @@ export function pushDb() {
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: {
-      fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10000) }),
+      fetch: fetchPushDatabase,
     },
   });
 }

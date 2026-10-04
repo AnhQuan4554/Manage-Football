@@ -25,6 +25,9 @@ function loadTs(path, mocks = {}) {
 }
 
 const utils = loadTs("src/features/notifications/utils.ts");
+const databaseFetch = loadTs("src/features/notifications/database-fetch.ts", {
+  "node:timers/promises": { setTimeout: async () => {} },
+});
 const valid = {
   endpoint: "https://web.push.apple.com/Qtest",
   keys: { p256dh: "B".repeat(87), auth: "a".repeat(22) },
@@ -78,6 +81,7 @@ test("message contains time, date, pitch and opponent", () => {
 const server = loadTs("src/features/notifications/server.ts", {
   "server-only": {},
   "./utils": utils,
+  "./database-fetch": databaseFetch,
 });
 test("cron fails closed with missing/wrong/short secret", () => {
   const previous = process.env.PWA_CRON_SECRET;
@@ -384,4 +388,136 @@ test("notification click cannot navigate outside app origin", async () => {
   });
   await work;
   assert.equal(opened[0], "https://football.test/notifications");
+});
+
+test("database diagnostics preserve the response and omit secrets and row data", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalLog = console.error;
+  const logs = [];
+  try {
+    console.error = (...args) => logs.push(args);
+    globalThis.fetch = async () =>
+      Response.json(
+        { code: "PGRST301", message: "private database details", details: "secret value" },
+        { status: 401 },
+      );
+    const response = await databaseFetch.fetchPushDatabase(
+      "https://database.test/rest/v1/push_devices?token_hash=private-token",
+      { headers: { Authorization: "Bearer secret-key" } },
+    );
+    assert.equal(response.status, 401);
+    assert.equal((await response.json()).code, "PGRST301");
+    assert.deepEqual(logs, [
+      [
+        "PUSH_DATABASE_HTTP_ERROR",
+        {
+          resource: "/rest/v1/push_devices",
+          status: 401,
+          code: "PGRST301",
+        },
+      ],
+    ]);
+    globalThis.fetch = async () => {
+      throw new Error("private network details");
+    };
+    await assert.rejects(databaseFetch.fetchPushDatabase("https://database.test/private-path"));
+    assert.deepEqual(logs[1], [
+      "PUSH_DATABASE_CONNECTION_ERROR",
+      {
+        resource: "other",
+        code: "NETWORK_ERROR",
+      },
+    ]);
+    assert.doesNotMatch(JSON.stringify(logs), /private|secret/);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.error = originalLog;
+  }
+});
+
+test("delivery cleanup recovers from a transient 504 with the same conditional update", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalWarn = console.warn;
+  const calls = [];
+  try {
+    console.warn = () => {};
+    globalThis.fetch = async (url, init) => {
+      calls.push({ url, method: init.method, body: init.body });
+      return calls.length === 1
+        ? new Response("Gateway timeout", { status: 504 })
+        : new Response(null, { status: 204 });
+    };
+    const response = await databaseFetch.fetchPushDatabase(
+      "https://database.test/rest/v1/push_deliveries?status=in.(pending,processing)",
+      { method: "PATCH", body: JSON.stringify({ status: "skipped", error_code: "EXPIRED" }) },
+    );
+    assert.equal(response.status, 204);
+    assert.equal(calls.length, 2);
+    assert.deepEqual(calls[0], calls[1]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.warn = originalWarn;
+  }
+});
+
+test("ambiguous claims and test throttle writes are not repeated", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalLog = console.error;
+  let calls = 0;
+  try {
+    console.error = () => {};
+    globalThis.fetch = async () => {
+      calls++;
+      return new Response(null, { status: 504 });
+    };
+    for (const [resource, method] of [
+      ["rpc/claim_push_deliveries", "POST"],
+      ["rpc/redeem_push_invite", "POST"],
+      ["push_devices", "PATCH"],
+    ]) {
+      const before = calls;
+      const response = await databaseFetch.fetchPushDatabase(
+        "https://database.test/rest/v1/" + resource,
+        { method },
+      );
+      assert.equal(response.status, 504);
+      assert.equal(calls - before, 1);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.error = originalLog;
+  }
+});
+
+test("database retries stop after three attempts and do not retry authorization errors", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalLog = console.error;
+  const originalWarn = console.warn;
+  let calls = 0;
+  try {
+    console.error = console.warn = () => {};
+    globalThis.fetch = async () => {
+      calls++;
+      return new Response(null, { status: 504 });
+    };
+    assert.equal(
+      (await databaseFetch.fetchPushDatabase("https://database.test/rest/v1/push_devices")).status,
+      504,
+    );
+    assert.equal(calls, 3);
+    calls = 0;
+    globalThis.fetch = async () => {
+      calls++;
+      return new Response(null, { status: 401 });
+    };
+    assert.equal(
+      (await databaseFetch.fetchPushDatabase("https://database.test/rest/v1/push_devices")).status,
+      401,
+    );
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.error = originalLog;
+    console.warn = originalWarn;
+  }
 });

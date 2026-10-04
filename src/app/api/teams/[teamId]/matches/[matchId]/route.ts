@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/features/auth/server";
 import { jsonResponse } from "@/lib/api/http";
 import { revalidatePath } from "next/cache";
 import { getTeamMatch } from "@/features/matches/services/matchApiService";
@@ -19,6 +20,8 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
+  const permission = await requireAdmin();
+  if (permission.status !== 200) return jsonResponse(permission.result, permission.status);
   const { teamId, matchId } = await params;
   const body = await request.json();
   const result = await updateTeamMatch(teamId, matchId, body);
@@ -27,6 +30,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 }
 
 export async function DELETE(_request: NextRequest, { params }: RouteContext) {
+  const permission = await requireAdmin();
+  if (permission.status !== 200) return jsonResponse(permission.result, permission.status);
   const { teamId, matchId } = await params;
   const result = await deleteTeamMatch(teamId, matchId);
 

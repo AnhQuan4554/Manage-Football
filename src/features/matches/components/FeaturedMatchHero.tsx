@@ -124,7 +124,7 @@ export function FeaturedMatchHero({ match }: { match: Match }) {
         </Link>
         <Link href={`/lineup/${match.id}`}>
           <Button size="large" block>
-            Xếp đội hình
+            Xem đội hình
           </Button>
         </Link>
       </div>

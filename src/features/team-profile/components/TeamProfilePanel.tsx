@@ -1,5 +1,7 @@
 "use client";
 
+import { AdminOnly } from "@/features/auth/components/Permissions";
+
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -194,11 +196,13 @@ function TeamHeader({ subtitle = "Quản lý thông tin đội bóng." }: { subt
       title="Đội"
       subtitle={subtitle}
       action={
-        <Link href="/team/new">
-          <Button type="primary" icon={<PlusOutlined />}>
-            Thêm
-          </Button>
-        </Link>
+        <AdminOnly>
+          <Link href="/team/new">
+            <Button type="primary" icon={<PlusOutlined />}>
+              Thêm
+            </Button>
+          </Link>
+        </AdminOnly>
       }
     />
   );
